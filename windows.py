@@ -29,7 +29,7 @@ class Timer(Window):
         StopWatchPanel(self, 0, 0, self.total_time_float, 1, 2)
         TotalTimePanel(self, 0, 4, self.total_time_float, 1, 2)
         Panel(parent=self, x=0, y=2, x_span=1, y_span=2)
-        PomodoroPanel(self, 1, 0, 2, 3)
+        PomodoroPanel(self, 1, 0, self.total_time_float, 2, 3)
         Panel(parent=self, x=1, y=3, x_span=2, y_span=3)
 
 
