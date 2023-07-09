@@ -3,13 +3,14 @@ import tkinter as tk
 from settings import *
 import calendar
 
-# Thoughts for later
-# - to make gallery view for "to-do lists", make 3 frames in "to do"
-#   window and pack each list to column with the least height
+# To do
+# - clean up the ListPanel
+# - clean up the ListWork
+# - clean up the saving and loading
 
 
-# head-panel responsible for designs
-class Panel(ctk.CTkFrame):
+# head-panel responsible for panels in timer window
+class TimerPanel(ctk.CTkFrame):
     def __init__(self, parent, x, y, name=None, x_span=1, y_span=1):
 
         super().__init__(master=parent, fg_color=VIOLET, corner_radius=20)
@@ -22,7 +23,7 @@ class Panel(ctk.CTkFrame):
 
 
 # panel for stopwatch
-class StopWatchPanel(Panel):
+class StopWatchPanel(TimerPanel):
     def __init__(self, parent, total_time, time_running, x, y, x_span=1, y_span=1):
         super().__init__(parent=parent, x=x, y=y, name="Timer", x_span=x_span, y_span=y_span)
 
@@ -60,7 +61,7 @@ class StopWatchPanel(Panel):
 
 
 # panel for total time elapsed in one day
-class TotalTimePanel(Panel):
+class TotalTimePanel(TimerPanel):
     def __init__(self, parent, today_date, time_data, x, y, x_span=1, y_span=1):
         super().__init__(parent=parent, x=x, y=y, name="Total", x_span=x_span, y_span=y_span)
 
@@ -82,7 +83,7 @@ class TotalTimePanel(Panel):
 
 
 # panel for pomodoro
-class PomodoroPanel(Panel):
+class PomodoroPanel(TimerPanel):
     def __init__(self, parent, x, y, total_time, time_running, x_span=1, y_span=1):
         super().__init__(parent=parent, x=x, y=y, name="Pomodoro", x_span=x_span, y_span=y_span)
 
@@ -244,7 +245,7 @@ class PomodoroPanel(Panel):
             self.stop_button.configure(text="START")
 
 
-class MonthlyStatsPanel(Panel):
+class MonthlyStatsPanel(TimerPanel):
     def __init__(self, parent, x, y, date, total_time, time_data, x_span, y_span):
         super().__init__(parent=parent, x=x, y=y, x_span=x_span, y_span=y_span)
 
@@ -346,7 +347,7 @@ class MonthlyStatsPanel(Panel):
         return avg
 
 
-class WeeklyStatsPanel(Panel):
+class WeeklyStatsPanel(TimerPanel):
     def __init__(self, parent, today_date, time_data, x, y, x_span, y_span):
         super().__init__(parent=parent, x=x, y=y, x_span=x_span, y_span=y_span)
 
@@ -532,6 +533,198 @@ class WeeklyStatsPanel(Panel):
                     self.month_date = 1
                 self.day_date = calendar.monthcalendar(self.year_date, self.month_date)[0][-1]
             self.find_current_week()
+
+
+class ListPanel(ctk.CTkFrame):
+    def __init__(self, parent, todo_window, tasks, title="To do list", id=None):
+        super().__init__(master=parent, fg_color=VIOLET, corner_radius=20)
+
+        # data
+        self.title_string = ctk.StringVar(value=title)
+        self.tasks = tasks
+        self.main_window = todo_window
+        if id is None:
+            self.id = self.winfo_id()
+        else:
+            self.id = id
+
+        # main frames
+        self.edit_frame = self.setup_edit_frame()
+        self.main_frame = self.setup_main_frame()
+
+        # packing the list
+        self.pack(padx=5, pady=5, side="top", fill="x")
+
+    def setup_edit_frame(self):
+        edit_frame = ctk.CTkFrame(self, fg_color="transparent")
+        font = ctk.CTkFont(FONT_FAMILY, FONT_SIZE_TODO, "bold")
+
+        # setting the title
+        ctk.CTkLabel(edit_frame, text="Name of the list:", font=font, anchor="w").pack(fill="x")
+        ctk.CTkEntry(edit_frame, textvariable=self.title_string, border_width=0, fg_color=OTHER_BLUES["dark"],
+                     font=font).pack(fill="x")
+
+        # adding the tasks
+        ctk.CTkLabel(edit_frame, text="Add some tasks:",
+                     font=font, anchor="w").pack(fill="x")
+        task_entry = ctk.CTkEntry(edit_frame, font=font, fg_color=OTHER_BLUES["dark"], border_width=0)
+        task_entry.pack(fill="x")
+
+        # adding tasks if they exist
+        task_frame = self.add_tasks(edit_frame)
+
+        # done and edit buttons
+        ctk.CTkButton(edit_frame, text="DONE", fg_color=OTHER_BLUES["middle"], hover_color=OTHER_BLUES["dark"],
+                      width=50, command=self.done).pack(side="left", pady=10)
+        ctk.CTkButton(edit_frame, text="ADD TASK", fg_color=OTHER_BLUES["middle"], hover_color=OTHER_BLUES["dark"],
+                      width=50, command=lambda: self.create_task(task_entry, task_frame)).pack(side="right", pady=10)
+
+        task_entry.bind("<Key-Return>", lambda event: self.create_task(task_entry, task_frame))
+        return edit_frame
+
+    def setup_main_frame(self):
+        main_frame = ctk.CTkFrame(self, fg_color="transparent")
+
+        # title
+        ctk.CTkLabel(main_frame, textvariable=self.title_string, font=ctk.CTkFont(FONT_FAMILY, FONT_SIZE_MAIN, "bold"),
+                     text_color=WHITE, anchor="w").pack()
+
+        # adding tasks
+        self.add_tasks(main_frame)
+
+        # buttons
+        ctk.CTkButton(main_frame, text="EDIT", fg_color=OTHER_BLUES["middle"], hover_color=OTHER_BLUES["dark"],
+                      width=50, command=self.edit).pack(side="left", pady=10)
+        ctk.CTkButton(main_frame, text="DELETE LIST", fg_color="red", hover_color=BLACK,
+                      width=50, command=self.delete).pack(side="right", pady=10)
+        return main_frame
+
+    # editing the list
+    def edit(self):
+        self.main_frame.pack_forget()
+        self.edit_frame = self.setup_edit_frame()
+        self.edit_frame.pack(expand=True, fill="both", padx=10, pady=10)
+
+    # after editing to save the list
+    def done(self):
+        self.load_the_list()
+        self.main_window.save_list(self)
+
+    # loading the list
+    def load_the_list(self):
+        self.edit_frame.pack_forget()
+        self.main_frame = self.setup_main_frame()
+        self.main_frame.pack(expand=True, fill="both", padx=10, pady=10)
+
+    # loading the tasks
+    def add_tasks(self, frame):
+        task_frame = ctk.CTkFrame(frame, fg_color="transparent", height=0)
+
+        for task, value in self.tasks.items():
+            ListWork(self, task_frame, task, self.tasks)
+
+        task_frame.pack(expand=True, fill="both")
+        return task_frame
+
+    # creating new tasks
+    def create_task(self, entry: ctk.CTkEntry, frame: ctk.CTkFrame):
+        task = entry.get()
+        self.tasks[task] = {"value": False,
+                            "type": "main"}
+
+        ListWork(self, frame, task, self.tasks)
+
+        # emptying the entry
+        entry.delete(0, "end")
+
+    # deleting the list
+    def delete(self):
+        self.main_window.delete_list(self)
+        self.pack_forget()
+
+
+class ListWork(ctk.CTkFrame):
+    def __init__(self, main_list: ListPanel, parent: ctk.CTkFrame, title: str, tasks: dict):
+        super().__init__(master=parent, fg_color="transparent")
+
+        # data
+        self.tasks = tasks
+        self.task = title
+        self.task_label = ctk.StringVar()
+        self.parent = parent
+        self.value = ctk.BooleanVar(value=tasks[title]["value"])
+        self.main_list = main_list
+
+        # the widgets
+        self.drag = self.init_widgets()
+
+        self.events()
+        self.pack(fill="both")
+
+    # initialising the widgets and returning label to drag
+    def init_widgets(self) -> ctk.CTkLabel:
+        label = ctk.CTkLabel(self, text="::  ", font=ctk.CTkFont(FONT_FAMILY, FONT_SIZE_MAIN + 1, "bold"),
+                             text_color=WHITE)
+        label.pack(side="left")
+        ctk.CTkCheckBox(self, textvariable=self.task_label, font=ctk.CTkFont(FONT_FAMILY, FONT_SIZE_MAIN - 3),
+                        variable=self.value, hover_color=OTHER_BLUES["middle"], fg_color=OTHER_BLUES["dark"],
+                        border_width=2, border_color=WHITE).pack(side="left", fill="x", pady=5)
+        ctk.CTkButton(self, text="x", fg_color="red", hover_color=BLACK, command=self.delete,
+                      font=ctk.CTkFont(FONT_FAMILY, FONT_SIZE_MAIN - 3, "bold"), width=25).place(relx=1, rely=0.5,
+                                                                                                 anchor="e")
+
+        if self.tasks[self.task]["type"] == "sub":
+            self.drag.configure(text="     ::  ")
+
+        return label
+
+    def delete(self):
+        del self.tasks[self.task]
+        self.main_list.tasks = self.tasks
+        self.update_list()
+        self.pack_forget()
+
+    def events(self):
+        self.value.trace("w", self.save_value)
+        self.bind("<Configure>", lambda event: self.format())
+        self.drag.bind("<Enter>", lambda event: self.configure(fg_color=OTHER_BLUES["middle"]))
+        self.drag.bind("<Leave>", lambda event: self.configure(fg_color=VIOLET))
+        self.drag.bind("<B1-Motion>", self.change_place)
+
+    # originally meant to change type and the placement of tasks but is only capable of changing the type
+    def change_place(self, event):
+        if event.x > 50:
+            if self.tasks[self.task]["type"] == "main":
+                self.tasks[self.task]["type"] = "sub"
+                self.drag.configure(text="     ::  ")
+                self.update_list()
+        else:
+            if self.tasks[self.task]["type"] == "sub":
+                self.tasks[self.task]["type"] = "main"
+                self.drag.configure(text="::  ")
+                self.update_list()
+
+    # formatting done for a little longer tasks
+    def format(self):
+        text = self.task.split()
+        # formatting according to the type
+        if self.tasks[self.task]["type"] == "main":
+            max_line_length = self.parent.winfo_width() * 13 // 163 - 3
+            line_length = 0
+            for i in range(len(text)):
+                line_length += len(text[i])
+                if line_length > max_line_length:
+                    text[i - 1] += "\n"
+                    line_length = 0
+
+        self.task_label.set(" ".join(text))
+
+    def save_value(self, *args):
+        self.main_list.tasks[self.task]["value"] = self.value.get()
+        self.update_list()
+
+    def update_list(self):
+        self.main_list.main_window.save_list(self.main_list)
 
 
 # helper function to convert total seconds into hours, minutes and seconds
