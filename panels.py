@@ -674,7 +674,7 @@ class ListWork(ctk.CTkFrame):
                                                                                                  anchor="e")
 
         if self.tasks[self.task]["type"] == "sub":
-            self.drag.configure(text="     ::  ")
+            label.configure(text="     ::  ")
 
         return label
 
