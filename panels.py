@@ -4,9 +4,12 @@ from settings import *
 import calendar
 
 # To do
-# - clean up the ListPanel
-# - clean up the ListWork
-# - clean up the saving and loading
+# - create day selection
+# - create month changing
+# - create monthly stat
+# - relate monthly stat to the current month overview
+# - add edit and remove buttons
+# - at the very end find some colors
 
 
 # head-panel responsible for panels in timer window
@@ -726,6 +729,260 @@ class ListWork(ctk.CTkFrame):
     def update_list(self):
         self.main_list.main_window.save_list(self.main_list)
 
+
+class HabitPanel(ctk.CTkFrame):
+    def __init__(self, parent, date, save_func, delete_func, id=None, title="Habit Name", description="Short description of the habit",
+                 color="violet", track={}):
+        super().__init__(master=parent, fg_color=COLORS[color]["self"], corner_radius=20)
+
+        # data
+        self.title = ctk.StringVar(value=title)
+        self.description = ctk.StringVar(value=description)
+        self.color = color
+        self.date = date
+        self.date_display = date[:]
+        self.content_frame = None
+        self.main_canvas: tk.Canvas = ...
+        self.habit_tracker = track.copy()
+        self.id = id
+        if id is None:
+            self.id = self.winfo_id()
+        self.save_func = save_func
+        self.delete_func = delete_func
+
+        self.edit_frame = self.setup_edit_frame()
+        self.main_frame = self.setup_main_frame()
+        self.pack(expand=True, fill="both", padx=5, pady=5)
+
+    # setting up the edit frame
+    def setup_edit_frame(self) -> ctk.CTkFrame:
+        frame = ctk.CTkFrame(self, fg_color="transparent")
+
+        # questions related to title, description and color
+        ctk.CTkLabel(frame, text="Write your habit name:", anchor="w",
+                     font=ctk.CTkFont(FONT_FAMILY, FONT_SIZE_MAIN, "bold")).pack(fill="x")
+        ctk.CTkEntry(frame, textvariable=self.title, border_width=0, fg_color=COLORS[self.color]["opposite"],
+                     font=ctk.CTkFont(FONT_FAMILY, FONT_SIZE_MAIN, "bold")).pack(fill="x", pady=5)
+        ctk.CTkLabel(frame, text="Write a short description of your habit:", anchor="w",
+                     font=ctk.CTkFont(FONT_FAMILY, FONT_SIZE_MAIN, "bold")).pack(fill="x")
+        ctk.CTkEntry(frame, textvariable=self.description, border_width=0, fg_color=COLORS[self.color]["opposite"],
+                     font=ctk.CTkFont(FONT_FAMILY, FONT_SIZE_MAIN, "bold")).pack(fill="x", pady=5)
+
+        ctk.CTkLabel(frame, text="Pick a color for your habit:", anchor="w",
+                     font=ctk.CTkFont(FONT_FAMILY, FONT_SIZE_MAIN, "bold")).pack(fill="x", pady=5)
+
+        color_button_frame = ctk.CTkFrame(frame, fg_color="transparent")
+        available_colors = {"blue_middle": OTHER_BLUES["middle"], "pink_light": PINKS["light"], "pink_dark": PINKS["dark"],
+                            "blue_dark": OTHER_BLUES["dark"], "violet": VIOLET}
+
+        for color_name, color in available_colors.items():
+            self.color_buttons(color_name, color, color_button_frame)
+
+        color_button_frame.pack(fill="x")
+
+        ctk.CTkButton(frame, text="DONE", **BUTTON_COLORS[self.color + "_inverse"], border_width=2, command=self.done,
+                      border_color=WHITE).pack(side="left", pady=10, padx=20, fill="both", expand=True)
+        ctk.CTkButton(frame, text="DELETE", **BUTTON_COLORS["delete"], border_color=WHITE, border_width=2,
+                      command=self.delete).\
+            pack(side="right", pady=10, padx=20, fill="both", expand=True)
+
+        return frame
+
+    # setting up the main frame
+    def setup_main_frame(self) -> ctk.CTkFrame:
+        frame = ctk.CTkFrame(self, fg_color="transparent")
+
+        # for the title and the short description
+        self.setup_title_main_frame(frame)
+
+        # frame to display the calendar and the stats
+        self.setup_content_frame(frame)
+
+        ctk.CTkButton(frame, text="EDIT", **BUTTON_COLORS[self.color + "_inverse"], border_width=2, command=self.edit,
+                      border_color=WHITE).pack(side="left", padx=20, fill="both", expand=True)
+        ctk.CTkButton(frame, text="DELETE", **BUTTON_COLORS["delete"], border_color=WHITE, border_width=2,
+                      command=self.delete). \
+            pack(side="right", padx=20, fill="both", expand=True)
+
+        return frame
+
+    # setting up frame responsible for displaying the month and the relevant stats
+    def setup_content_frame(self, frame):
+        self.content_frame = ctk.CTkFrame(frame, fg_color="transparent")
+
+        # frame to display calendars
+        self.setup_monthly_calendar(self.content_frame)
+
+        # frame to display the stats
+        self.setup_monthly_stat(self.content_frame)
+
+        self.content_frame.pack(expand=True, fill="both", pady=10)
+
+    # setting up title frame for main frame
+    def setup_title_main_frame(self, main_frame):
+        frame = ctk.CTkFrame(main_frame, fg_color=COLORS[self.color]["opposite"], corner_radius=20)
+        ctk.CTkLabel(frame, textvariable=self.title, anchor="s",
+                     font=ctk.CTkFont(FONT_FAMILY, FONT_SIZE_MAIN + 15, "bold")).pack(side="left", fill="x", padx=13)
+        ctk.CTkLabel(frame, text=" - ", anchor="s",
+                     font=ctk.CTkFont(FONT_FAMILY, FONT_SIZE_MAIN - 2, "bold")).pack(side="left", fill="x")
+        ctk.CTkLabel(frame, textvariable=self.description, anchor="sw",
+                     font=ctk.CTkFont(FONT_FAMILY, FONT_SIZE_MAIN - 2, "bold")).pack(side="left", fill="x")
+        frame.pack(side="top", fill="x", pady=5, ipady=5)
+
+    # setting up calendar frame for main frame
+    def setup_monthly_calendar(self, content_frame):
+        month = calendar.monthcalendar(self.date_display[2], self.date_display[1])
+
+        # main frame for calendar
+        calendar_frame = ctk.CTkFrame(content_frame, fg_color=COLORS[self.color]["opposite"], corner_radius=20)
+
+        # frame for title of calendar
+        calendar_title_frame = ctk.CTkFrame(calendar_frame, fg_color=COLORS[self.color]["self"],
+                                            corner_radius=20)
+
+        ctk.CTkButton(calendar_title_frame, text="<", **BUTTON_COLORS[self.color], corner_radius=9,
+                      command=lambda: self.change_month(-1)).place(relx=0.04, rely=0.5, anchor="w", relwidth=0.1,
+                                                                  relheight=0.9)
+        ctk.CTkLabel(calendar_title_frame, text=f"{calendar.month_name[self.date_display[1]]} {self.date_display[2]}",
+                     font=ctk.CTkFont(FONT_FAMILY, FONT_SIZE_CALENDAR + 8, "bold")).place(relx=0.5, rely=0.5,
+                                                                                          anchor="center")
+        ctk.CTkButton(calendar_title_frame, text=">", **BUTTON_COLORS[self.color], corner_radius=9,
+                      command=lambda: self.change_month(1)).place(relx=0.96, rely=0.5, anchor="e", relwidth=0.1,
+                                                                  relheight=0.9)
+
+        # setting up the month itself
+        calendar_month_frame = ctk.CTkFrame(calendar_frame, fg_color="transparent")
+        calendar_month_frame.columnconfigure((0, 1, 2, 3, 4, 5, 6), weight=1, uniform="z")
+        calendar_month_frame.rowconfigure(list((i for i in range(len(month)))), weight=1, uniform="z")
+
+        for row in range(len(month)):
+            for column in range(7):
+                if month[row][column] != 0:
+                    self.calendar_buttons(calendar_month_frame, month, row, column)
+
+        calendar_title_frame.place(relx=0.5, rely=0.05, anchor="n", relwidth=0.93, relheight=0.14)
+        calendar_month_frame.place(relx=0.5, rely=0.95, anchor="s", relwidth=0.93, relheight=0.75)
+        calendar_frame.place(relx=0, rely=1, relwidth=0.48, anchor="sw")
+
+    def change_month(self, amount: int):
+        self.date_display = [self.date_display[0], self.date_display[1] + amount, self.date_display[2]]
+        if self.date_display[1] < 1:
+            self.date_display[2] -= 1
+            self.date_display[1] = 12
+            self.date_display[0] = 31
+        elif self.date_display[1] > 12:
+            self.date_display[2] += 1
+            self.date_display[1] = 1
+            self.date_display[0] = 1
+
+        self.content_frame.pack_forget()
+        print(self.habit_tracker)
+        self.setup_content_frame(self.main_frame)
+
+    # setting up monthly stats for main frame
+    def setup_monthly_stat(self, content_frame):
+        stats_frame = ctk.CTkFrame(content_frame, fg_color=COLORS[self.color]["opposite"], corner_radius=20)
+
+        # canvas to draw stats
+        self.main_canvas = tk.Canvas(stats_frame, background=COLORS[self.color]["opposite"], bd=0, highlightthickness=0,
+                           relief="ridge")
+        self.main_canvas.pack(expand=True, fill="both", padx=7, pady=7)
+
+        self.main_canvas.bind("<Configure>", lambda event: self.draw_stats(event.width, event.height))
+
+        stats_frame.place(relx=1, rely=1, relwidth=0.48, relheight=1, anchor="se")
+
+    def draw_stats(self, width, height):
+        # drawing graph lines
+        self.main_canvas.delete("all")
+        self.main_canvas.create_line(width*0.01, height*0.1, width*0.01, height*0.9, fill=WHITE, width=2)
+        self.main_canvas.create_line(width * 0.01, height * 0.9, width * 0.99, height * 0.9, fill=WHITE, width=2)
+
+        month = calendar.monthcalendar(self.date_display[2], self.date_display[1])
+        month_max = max(month[-1])
+        gap = width // month_max
+        s = 0
+        coords = [(width*0.01, height*0.9)]
+        for i in range(1, month_max+1):
+            if self.date[1] == self.date_display[1] and i > self.date[0]:
+                break
+            if self.habit_tracker.get((i, self.date_display[1], self.date_display[2])) is not None:
+                s += 1
+            h = height * 0.8 * s/i
+            coords.append((width*0.01 + gap*i - gap, height*0.9 - h))
+        if self.date[1] == self.date_display[1] and i > self.date[0]:
+            coords.append((width*0.01 + gap*self.date[0] - gap, height*0.9))
+        else:
+            coords.append((width*0.01 + gap*month_max - gap, height*0.9))
+
+        self.main_canvas.create_polygon(coords, width=4, fill=COLORS[self.color]["self"], outline=WHITE)
+
+    # functions that is responsible for changing color in edit mode
+    def change_color(self, color):
+        self.color = color
+        self.edit_frame.pack_forget()
+        self.configure(fg_color=COLORS[color]["self"])
+        self.edit_frame = self.setup_edit_frame()
+        self.edit_frame.pack(expand=True, fill="both", padx=15, pady=15)
+
+    # helper function that helps to avoid the bug with buttons and functions
+    def color_buttons(self, color_name, color, color_button_frame):
+        button = ctk.CTkButton(color_button_frame, text="", width=50, height=50, **BUTTON_COLORS[color_name],
+                               border_width=2, border_color=WHITE, corner_radius=20,
+                               command=lambda: self.change_color(color_name))
+        button.pack(side="left", padx=5, expand=True)
+
+    def calendar_buttons(self, calendar_month_frame, month, row, column):
+        date = (month[row][column], self.date_display[1], self.date_display[2])
+        state = "disabled"
+        if self.date_display[2] == self.date[2] and self.date_display[1] <= self.date[1]:
+            state = "normal"
+            if self.date_display[1] == self.date[1] and month[row][column] > self.date[0]:
+                state = "disabled"
+
+        if self.habit_tracker.get(date) is None:
+            button = ctk.CTkButton(calendar_month_frame, text=str(month[row][column]), text_color=WHITE,
+                                   fg_color=COLORS[self.color]["opposite"], hover_color=COLORS[self.color]["self"],
+                                   corner_radius=10, width=0, font=ctk.CTkFont(FONT_FAMILY, FONT_SIZE_CALENDAR, "bold"),
+                                   state=state, height=30)
+        else:
+            button = ctk.CTkButton(calendar_month_frame, text=str(month[row][column]), text_color=WHITE,
+                                   fg_color=COLORS[self.color]["self"], hover_color=COLORS[self.color]["self"],
+                                   corner_radius=10, width=0, font=ctk.CTkFont(FONT_FAMILY, FONT_SIZE_CALENDAR, "bold"),
+                                   state=state, height=30)
+
+        button.configure(command=lambda: self.done_work(date, button))
+        button.grid(row=row, column=column, sticky="nsew", pady=1, padx=2)
+
+    # after editing
+    def done(self):
+        self.load()
+        self.save_func(self)
+
+    def load(self):
+        self.edit_frame.pack_forget()
+        self.main_frame = self.setup_main_frame()
+        self.main_frame.pack(expand=True, fill="both", padx=15, pady=5)
+
+    def edit(self):
+        self.main_frame.pack_forget()
+        self.edit_frame = self.setup_edit_frame()
+        self.edit_frame.pack(expand=True, fill="both", padx=15, pady=15)
+
+    def done_work(self, date, button):
+        if self.habit_tracker.get(date) is None:
+            self.habit_tracker[date] = True
+            button.configure(fg_color=COLORS[self.color]["self"])
+        else:
+            del self.habit_tracker[date]
+            button.configure(fg_color=COLORS[self.color]["opposite"])
+
+        self.save_func(self)
+        self.draw_stats(self.main_canvas.winfo_width(), self.main_canvas.winfo_height())
+
+    def delete(self):
+        self.delete_func(self)
+        self.pack_forget()
 
 # helper function to convert total seconds into hours, minutes and seconds
 def seconds_to_time(seconds):

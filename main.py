@@ -16,7 +16,7 @@ class App(ctk.CTk):
         ctk.set_appearance_mode("Dark")
 
         # data
-        self.current_window = ctk.StringVar(value="to do")
+        self.current_window = ctk.StringVar(value="habit")
         self.current_window.trace("w", self.change_window)
 
         # widgets
@@ -64,9 +64,9 @@ class Menu(ctk.CTkFrame):
 
         # menu buttons
         self.timer_button = self.create_menu_button("Timer", False)
-        self.to_do_button = self.create_menu_button("To Do", True)
+        self.to_do_button = self.create_menu_button("To Do", False)
         self.projects_button = self.create_menu_button("Projects", False)
-        self.habit_tracker_button = self.create_menu_button("Habit Tracker", False)
+        self.habit_tracker_button = self.create_menu_button("Habit Tracker", True)
 
         # adding commands to change the window
         self.buttons = [self.timer_button, self.to_do_button, self.projects_button, self.habit_tracker_button]
@@ -264,6 +264,63 @@ class Projects(Window):
 class HabitTracker(Window):
     def __init__(self, parent):
         super().__init__(parent=parent, name="habit")
+
+        # data
+        self.date = self.format_date()
+
+        self.habit_frame = ctk.CTkScrollableFrame(self, fg_color="transparent",
+                                                  scrollbar_button_color=OTHER_BLUES["middle"],
+                                                  scrollbar_button_hover_color=OTHER_BLUES["dark"])
+
+        ctk.CTkButton(self, text="+", corner_radius=20, text_color=WHITE, fg_color=OTHER_BLUES["middle"],
+                      font=ctk.CTkFont(FONT_FAMILY, FONT_SIZE_MAIN + 10, "bold"),
+                      hover_color=OTHER_BLUES["dark"], width=50, height=50,
+                      command=self.add_habit).place(relx=0.95, rely=0.97, anchor="se")
+
+        self.habit_frame.pack(expand=True, fill="both")
+
+        self.habits = self.load()
+
+    def add_habit(self):
+        HabitPanel(self.habit_frame, self.date, self.save, self.delete).edit()
+
+    def format_date(self):
+        date, _ = str(datetime.now()).split()
+        date = date.split("-")[::-1]
+        date = list(map(int, date))
+        return date
+
+    def load(self) -> dict:
+        print("Loading habits...")
+        habits = {}
+
+        with open("storing data/habits_data_set.pickle", "rb") as file:
+            habits = pickle.load(file)
+
+        print(habits)
+        for id, habit in habits.items():
+            habit = HabitPanel(self.habit_frame, self.date, self.save, self.delete, id, habit["name"], habit["description"], habit["color"],
+                               habit["track"].copy())
+            habit.load()
+
+        return habits
+
+    def save(self, habit):
+        id = habit.winfo_id()
+        self.habits[id] = {}
+        self.habits[id]["name"] = habit.title.get()
+        self.habits[id]["description"] = habit.description.get()
+        self.habits[id]["track"] = habit.habit_tracker
+        self.habits[id]["color"] = habit.color
+        with open("storing data/habits_data_set.pickle", "wb") as file:
+            pickle.dump(self.habits, file)
+
+    def delete(self, habit):
+        if self.habits.get(habit.id) is not None:
+            del self.habits[habit.id]
+        with open("storing data/habits_data_set.pickle", "wb") as file:
+            pickle.dump(self.habits, file)
+        print("Habit deleted")
 
 
 if __name__ == '__main__':
