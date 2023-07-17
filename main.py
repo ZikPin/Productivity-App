@@ -16,7 +16,7 @@ class App(ctk.CTk):
         ctk.set_appearance_mode("Dark")
 
         # data
-        self.current_window = ctk.StringVar(value="habit")
+        self.current_window = ctk.StringVar(value="projects")
         self.current_window.trace("w", self.change_window)
 
         # widgets
@@ -65,8 +65,8 @@ class Menu(ctk.CTkFrame):
         # menu buttons
         self.timer_button = self.create_menu_button("Timer", False)
         self.to_do_button = self.create_menu_button("To Do", False)
-        self.projects_button = self.create_menu_button("Projects", False)
-        self.habit_tracker_button = self.create_menu_button("Habit Tracker", True)
+        self.projects_button = self.create_menu_button("Projects", True)
+        self.habit_tracker_button = self.create_menu_button("Habit Tracker", False)
 
         # adding commands to change the window
         self.buttons = [self.timer_button, self.to_do_button, self.projects_button, self.habit_tracker_button]
@@ -259,6 +259,63 @@ class Projects(Window):
     def __init__(self, parent):
         super().__init__(parent=parent, name="projects")
 
+        # data
+        self.project_data, self.tabs = {}, {}
+        self.project_current = None
+        self.tabs_frame = None
+
+        self.setup_header_frame()
+
+        self.data_manager = DataManager("storing data/projects_data_set.pickle", self.project_data)
+        self.project_data = self.data_manager.load()
+        self.load_projects()
+
+    def setup_header_frame(self):
+        tab_x = ctk.IntVar(value=10)
+
+        tabs_main_frame = ctk.CTkFrame(self, fg_color=VIOLET, corner_radius=20, height=60)
+        tabs_main_frame.pack(fill="x", padx=10, pady=10)
+
+        self.tabs_frame = ctk.CTkFrame(tabs_main_frame, fg_color="transparent")
+        self.tabs_frame.place(x=10, y=12, anchor="nw")
+
+        ctk.CTkButton(self.tabs_frame, text="+", fg_color=OTHER_BLUES["middle"], width=30, command=self.create_tab). \
+            pack(side="right", fill="y", expand=True, padx=5)
+
+        ScrollBar(tabs_main_frame, self.tabs_frame, tab_x)
+
+    def add_tabs(self, tab_title, tab_id):
+        tab_button = ctk.CTkButton(self.tabs_frame, text=tab_title, fg_color=OTHER_BLUES["middle"], width=30,
+                                   command=lambda: self.open_tab(tab_id))
+        tab_button.pack(side="left", fill="y", expand=True, padx=5)
+
+        self.tabs[tab_id] = tab_button
+        if self.project_data.get(tab_id) is None:
+            self.project_data[tab_id] = {"name": tab_title,
+                                         "lists": {}}
+            self.data_manager.save(self.project_data)
+
+    def create_tab(self):
+        if self.project_current is not None:
+            print(self.project_current)
+            self.project_current.pack_forget()
+        self.project_current = NewProject(self, self.add_tabs)
+
+    def open_tab(self, id_):
+        if self.project_current is not None:
+            if not isinstance(self.project_current, NewProject):
+                self.project_data[self.project_current.id_]["lists"] = self.project_current.lists
+                self.data_manager.save(self.project_data)
+            self.project_current.pack_forget()
+        self.project_current = ProjectPanel(self, self.data_manager, id_, **self.project_data[id_])
+
+    def load_projects(self):
+        for ID, value in self.project_data.items():
+            self.add_tabs(value["name"], ID)
+
+    def delete_project(self, tab: ProjectPanel):
+        self.project_current = self.data_manager.delete(tab.id_, (self.project_current, self.tabs[tab.id_]), None)[0]
+
 
 # a window to track habits
 class HabitTracker(Window):
@@ -267,6 +324,7 @@ class HabitTracker(Window):
 
         # data
         self.date = self.format_date()
+        self.columns = []
 
         self.habit_frame = ctk.CTkScrollableFrame(self, fg_color="transparent",
                                                   scrollbar_button_color=OTHER_BLUES["middle"],
@@ -282,7 +340,15 @@ class HabitTracker(Window):
         self.habits = self.load()
 
     def add_habit(self):
-        HabitPanel(self.habit_frame, self.date, self.save, self.delete).edit()
+        if self.normal_layout:
+            HabitPanel(self.habit_frame, self.date, self.save, self.delete).edit()
+        else:
+            HabitPanel(self.find_frame(), self.date, self.save, self.delete).edit()
+
+    def find_frame(self):
+        if self.columns[0].winfo_height() < self.columns[1].winfo_height():
+            return self.columns[0]
+        return self.columns[1]
 
     def format_date(self):
         date, _ = str(datetime.now()).split()
@@ -291,24 +357,21 @@ class HabitTracker(Window):
         return date
 
     def load(self) -> dict:
-        print("Loading habits...")
         habits = {}
 
         with open("storing data/habits_data_set.pickle", "rb") as file:
             habits = pickle.load(file)
 
-        print(habits)
-        for id, habit in habits.items():
-            habit = HabitPanel(self.habit_frame, self.date, self.save, self.delete, id, habit["name"], habit["description"], habit["color"],
-                               habit["track"].copy())
-            habit.load()
+        for id_, habit in habits.items():
+            HabitPanel(self.habit_frame, self.date, self.save, self.delete, id_, habit["name"], habit["description"],
+                       habit["color"], habit["track"].copy()).load()
 
         return habits
 
     def save(self, habit):
         id = habit.winfo_id()
         self.habits[id] = {}
-        self.habits[id]["name"] = habit.title.get()
+        self.habits[id]["name"] = habit.name.get()
         self.habits[id]["description"] = habit.description.get()
         self.habits[id]["track"] = habit.habit_tracker
         self.habits[id]["color"] = habit.color
@@ -320,7 +383,6 @@ class HabitTracker(Window):
             del self.habits[habit.id]
         with open("storing data/habits_data_set.pickle", "wb") as file:
             pickle.dump(self.habits, file)
-        print("Habit deleted")
 
 
 if __name__ == '__main__':

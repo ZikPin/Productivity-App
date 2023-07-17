@@ -1,15 +1,76 @@
+import pickle
+
 import customtkinter as ctk
 import tkinter as tk
 from settings import *
 import calendar
+from uuid import uuid4
 
-# To do
-# - create day selection
-# - create month changing
-# - create monthly stat
-# - relate monthly stat to the current month overview
-# - add edit and remove buttons
-# - at the very end find some colors
+# To do later
+# - Seperate class for DataManager
+# - Seperate Colors to different dicts not one dict
+# - In App class change How windows are being oppened
+
+
+class DataManager:
+    def __init__(self, file_path, main_var):
+        self.file_path = file_path
+        self.main_var = main_var
+
+    def load(self):
+        with open(self.file_path, "rb") as file:
+            self.main_var = pickle.load(file)
+
+        return self.main_var
+
+    def save(self, value):
+        with open(self.file_path, "wb") as file:
+            pickle.dump(value, file)
+
+        self.main_var = value
+
+    def save_one_obj(self, id_, value):
+        self.main_var[id_] = value
+        self.save(self.main_var)
+
+    def delete(self, obj_id, objs_to_pack: tuple, *optional_return):
+        if self.main_var.get(obj_id) is not None:
+            del self.main_var[obj_id]
+
+        for obj in objs_to_pack:
+            obj.pack_forget()
+
+        self.save(self.main_var)
+
+        if len(optional_return) != 0:
+            return optional_return
+
+
+class ScrollBar(ctk.CTkSlider):
+    def __init__(self, parent, frame, frame_pos, orientation="horizontal"):
+        super().__init__(parent, button_corner_radius=10, variable=frame_pos, from_=10, orientation=orientation,
+                         progress_color=OTHER_BLUES["middle"], fg_color=OTHER_BLUES["middle"], to=600,
+                         button_color=OTHER_BLUES["dark"], button_hover_color=OTHER_BLUES["dark"], button_length=30)
+
+        # data
+        self.parent = parent
+        self.frame = frame
+        self.frame_pos = frame_pos
+
+        self.place(rely=0.98, relx=0.5, anchor="s", relwidth=0.95)
+
+        self.bind("<Configure>", self.change_scroll_bar)
+        self.frame.bind("<Configure>", self.change_scroll_bar)
+        self.frame_pos.trace("w", self.change_tab_x)
+
+    def change_scroll_bar(self, event):
+        if self.frame.winfo_width() <= self.parent.winfo_width():
+            self.configure(from_=10, to=11)
+        else:
+            self.configure(from_=10, to=self.frame.winfo_width() - self.parent.winfo_width() + 30)
+
+    def change_tab_x(self, *args):
+        self.frame.place(x=-self.frame_pos.get() + 20, y=12)
 
 
 # head-panel responsible for panels in timer window
@@ -539,17 +600,19 @@ class WeeklyStatsPanel(TimerPanel):
 
 
 class ListPanel(ctk.CTkFrame):
-    def __init__(self, parent, todo_window, tasks, title="To do list", id=None):
+    def __init__(self, parent, window, tasks, title="To do list", id=None, fg_color=VIOLET):
         super().__init__(master=parent, fg_color=VIOLET, corner_radius=20)
 
         # data
         self.title_string = ctk.StringVar(value=title)
         self.tasks = tasks
-        self.main_window = todo_window
+        self.main_window = window
         if id is None:
-            self.id = self.winfo_id()
+            self.id = uuid4()
         else:
             self.id = id
+
+        print(self.id)
 
         # main frames
         self.edit_frame = self.setup_edit_frame()
@@ -731,8 +794,8 @@ class ListWork(ctk.CTkFrame):
 
 
 class HabitPanel(ctk.CTkFrame):
-    def __init__(self, parent, date, save_func, delete_func, id=None, title="Habit Name", description="Short description of the habit",
-                 color="violet", track={}):
+    def __init__(self, parent, date, save_func, delete_func, id_=uuid4(), title="Habit Name",
+                 description="Short description of the habit", color="violet", track={}):
         super().__init__(master=parent, fg_color=COLORS[color]["self"], corner_radius=20)
 
         # data
@@ -744,9 +807,7 @@ class HabitPanel(ctk.CTkFrame):
         self.content_frame = None
         self.main_canvas: tk.Canvas = ...
         self.habit_tracker = track.copy()
-        self.id = id
-        if id is None:
-            self.id = self.winfo_id()
+        self.id = id_
         self.save_func = save_func
         self.delete_func = delete_func
 
@@ -763,6 +824,7 @@ class HabitPanel(ctk.CTkFrame):
                      font=ctk.CTkFont(FONT_FAMILY, FONT_SIZE_MAIN, "bold")).pack(fill="x")
         ctk.CTkEntry(frame, textvariable=self.title, border_width=0, fg_color=COLORS[self.color]["opposite"],
                      font=ctk.CTkFont(FONT_FAMILY, FONT_SIZE_MAIN, "bold")).pack(fill="x", pady=5)
+
         ctk.CTkLabel(frame, text="Write a short description of your habit:", anchor="w",
                      font=ctk.CTkFont(FONT_FAMILY, FONT_SIZE_MAIN, "bold")).pack(fill="x")
         ctk.CTkEntry(frame, textvariable=self.description, border_width=0, fg_color=COLORS[self.color]["opposite"],
@@ -772,8 +834,9 @@ class HabitPanel(ctk.CTkFrame):
                      font=ctk.CTkFont(FONT_FAMILY, FONT_SIZE_MAIN, "bold")).pack(fill="x", pady=5)
 
         color_button_frame = ctk.CTkFrame(frame, fg_color="transparent")
-        available_colors = {"blue_middle": OTHER_BLUES["middle"], "pink_light": PINKS["light"], "pink_dark": PINKS["dark"],
-                            "blue_dark": OTHER_BLUES["dark"], "violet": VIOLET}
+        available_colors = {"red": COLORS["red"]["self"], "pink_dark": PINKS["dark"],
+                            "green": COLORS["green"]["self"],
+                            "blue_dark": OTHER_BLUES["dark"], "violet": VIOLET, "coral": COLORS["coral"]["self"]}
 
         for color_name, color in available_colors.items():
             self.color_buttons(color_name, color, color_button_frame)
@@ -983,6 +1046,160 @@ class HabitPanel(ctk.CTkFrame):
     def delete(self):
         self.delete_func(self)
         self.pack_forget()
+
+
+class NewProject(ctk.CTkFrame):
+    def __init__(self, parent, func):
+        super().__init__(master=parent, fg_color=VIOLET, corner_radius=20)
+
+        # data
+        self.title = ""
+        self.func = func
+        self.id_ = uuid4()
+
+        ctk.CTkLabel(self, text="Name your new Project", text_color=WHITE,
+                     font=ctk.CTkFont(FONT_FAMILY, FONT_SIZE_PANEL_TITLE, "bold")).pack(expand=True, anchor="s",
+                                                                                        padx=10, pady=10)
+        self.name_entry = ctk.CTkEntry(self, corner_radius=10, fg_color=OTHER_BLUES["dark"], border_width=0, height=50,
+                                       font=ctk.CTkFont(FONT_FAMILY, FONT_SIZE_PANEL_TITLE - 5, "bold"),
+                                       text_color=WHITE, placeholder_text="New Project")
+        self.name_entry.pack(anchor="n", padx=100, pady=10, fill="x")
+        ctk.CTkButton(self, text="DONE", **BUTTON_COLORS["blue_middle"], command=self.done).pack(expand=True,
+                                                                                                 anchor="n")
+        self.name_entry.bind("<Key-Return>", lambda event: self.done())
+
+        self.pack(expand=True, fill="both", padx=10, pady=10)
+
+    # assigning new name
+    def done(self):
+        self.title = self.name_entry.get()
+        self.name_entry.delete(0, "end")
+        print(self.title)
+        self.func(self.title, self.id_)
+        self.pack_forget()
+
+
+class ProjectPanel(ctk.CTkFrame):
+    def __init__(self, parent, data_manager, id_, name, lists):
+        super().__init__(master=parent, fg_color=VIOLET, corner_radius=20)
+
+        # data
+        self.name = name
+        self.id_ = id_
+        self.parent = parent
+        self.data_manager: DataManager = data_manager
+        self.lists = lists
+        self.todo_frame_x = ctk.IntVar(value=10)
+        self.todo_frame = None
+
+        # setting up title and content frame
+        self.setup_title_frame()
+        self.setup_content_frame()
+
+        self.pack(expand=True, fill="both", padx=10, pady=10)
+
+    def setup_title_frame(self):
+        title_frame = ctk.CTkFrame(self, fg_color=OTHER_BLUES["middle"], corner_radius=15)
+        ctk.CTkLabel(title_frame, text=self.name, text_color=WHITE,
+                     font=ctk.CTkFont(FONT_FAMILY, FONT_SIZE_PANEL_TITLE, "bold")). \
+            pack(side="left", padx=10, pady=10)
+        ctk.CTkButton(title_frame, text="DELETE", **BUTTON_COLORS["delete"], width=40, corner_radius=7,
+                      font=ctk.CTkFont(FONT_FAMILY, FONT_SIZE_MAIN),
+                      command=lambda: self.parent.delete_project(self)).pack(side="right", padx=10, pady=10)
+        ctk.CTkButton(title_frame, text="CLOSE", **BUTTON_COLORS["blue_dark"], width=40, corner_radius=7,
+                      font=ctk.CTkFont(FONT_FAMILY, FONT_SIZE_MAIN), command=self.pack_forget).pack(side="right", padx=10,
+                                                                                              pady=10)
+        title_frame.pack(fill="x", anchor="n", pady=7, padx=7)
+
+    def setup_content_frame(self):
+        content_frame = ctk.CTkFrame(self, fg_color=OTHER_BLUES["middle"], corner_radius=15)
+
+        self.todo_frame = ctk.CTkFrame(content_frame, fg_color="transparent")
+        self.todo_frame.place(x=0, y=12, relheight=0.85)
+
+        ctk.CTkButton(content_frame, text="+", **BUTTON_COLORS["blue_dark"], corner_radius=15, width=50, height=50,
+                      font=ctk.CTkFont(FONT_FAMILY, FONT_SIZE_MAIN+5), command=self.add_list).\
+            place(relx=0.95, rely=0.93, anchor="se")
+
+        content_frame.pack(expand=True, fill="both", pady=7, padx=7)
+
+        # scrollbar
+        ScrollBar(content_frame, self.todo_frame, self.todo_frame_x)
+
+        self.load_lists()
+
+    def add_list(self):
+        list_ = ProjectList(self.todo_frame, self, {})
+        list_.edit()
+
+    def save_list(self, list_: ListPanel):
+        self.lists[list_.id] = {"title": list_.title_string.get(),
+                                "tasks": list_.tasks}
+        self.data_manager.save_one_obj(self.id_, {"name": self.name, "lists": self.lists})
+
+    def delete_list(self, list_):
+        del self.lists[list_.id]
+        self.data_manager.save_one_obj(self.id_, {"name": self.name, "lists": self.lists})
+
+    def load_lists(self):
+        for ID, the_list_data in self.lists.items():
+            the_list = ProjectList(self.todo_frame, self, the_list_data["tasks"], the_list_data["title"], ID)
+            the_list.load_the_list()
+
+
+class ProjectList(ListPanel):
+    def __init__(self, parent, window, tasks, title="To do list", id_=None):
+        super().__init__(parent=parent, window=window, tasks=tasks, title=title, id=id_)
+
+        self.pack(padx=5, pady=5, side="left", fill="y", anchor="nw", expand=True)
+
+    def setup_main_frame(self):
+        main_frame = ctk.CTkScrollableFrame(self, fg_color="transparent", scrollbar_button_color=WHITE,
+                                            scrollbar_button_hover_color=OTHER_BLUES["dark"])
+
+        # title
+        ctk.CTkLabel(main_frame, textvariable=self.title_string, font=ctk.CTkFont(FONT_FAMILY, FONT_SIZE_MAIN, "bold"),
+                     text_color=WHITE, anchor="w").pack()
+
+        # adding tasks
+        self.add_tasks(main_frame)
+
+        # buttons
+        ctk.CTkButton(main_frame, text="EDIT", fg_color=OTHER_BLUES["middle"], hover_color=OTHER_BLUES["dark"],
+                      width=50, command=self.edit).pack(side="left", pady=10)
+        ctk.CTkButton(main_frame, text="DELETE LIST", fg_color="red", hover_color=BLACK,
+                      width=50, command=self.delete).pack(side="right", pady=10)
+
+        return main_frame
+
+    def setup_edit_frame(self):
+        edit_frame = ctk.CTkScrollableFrame(self, fg_color="transparent", scrollbar_button_color=WHITE,
+                                            scrollbar_button_hover_color=OTHER_BLUES["dark"])
+        font = ctk.CTkFont(FONT_FAMILY, FONT_SIZE_TODO, "bold")
+
+        # setting the title
+        ctk.CTkLabel(edit_frame, text="Name of the list:", font=font, anchor="w").pack(fill="x")
+        ctk.CTkEntry(edit_frame, textvariable=self.title_string, border_width=0, fg_color=OTHER_BLUES["dark"],
+                     font=font).pack(fill="x")
+
+        # adding the tasks
+        ctk.CTkLabel(edit_frame, text="Add some tasks:",
+                     font=font, anchor="w").pack(fill="x")
+        task_entry = ctk.CTkEntry(edit_frame, font=font, fg_color=OTHER_BLUES["dark"], border_width=0)
+        task_entry.pack(fill="x")
+
+        # adding tasks if they exist
+        task_frame = self.add_tasks(edit_frame)
+
+        # done and edit buttons
+        ctk.CTkButton(edit_frame, text="DONE", fg_color=OTHER_BLUES["middle"], hover_color=OTHER_BLUES["dark"],
+                      width=50, command=self.done).pack(side="left", pady=10)
+        ctk.CTkButton(edit_frame, text="ADD TASK", fg_color=OTHER_BLUES["middle"], hover_color=OTHER_BLUES["dark"],
+                      width=50, command=lambda: self.create_task(task_entry, task_frame)).pack(side="right", pady=10)
+
+        task_entry.bind("<Key-Return>", lambda event: self.create_task(task_entry, task_frame))
+        return edit_frame
+
 
 # helper function to convert total seconds into hours, minutes and seconds
 def seconds_to_time(seconds):
