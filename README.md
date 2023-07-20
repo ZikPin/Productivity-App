@@ -29,9 +29,9 @@ Habit tracker:
 
 
 ## File structure:
-- There are 3 main python files that contain all the logic:
+- There are 3 main Python files that contain all the logic:
   - main.py where the app is run
-  - panels.py where the logic for panels are created
+  - panels.py where the logic for panels is created
   - settings.py for some constant values
-- Besides there is "storing data" folder to store all the necessary data like lists, habits, projects, total time (done by pickle module)
-- In dist folder there is main folder that contains the exe file for the program (built with pyinstaller on windows, so probably runs only on windows :/ )
+- Besides, there is a "storing data" folder to store all the necessary data like lists, habits, projects, total time (done by pickle module)
+- In the dist folder, there is the main folder that contains the exe file for the program (built with pyinstaller on Windows, so probably runs only on Windows :/ )
