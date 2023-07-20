@@ -6,15 +6,22 @@ import tkinter as tk
 from settings import *
 import calendar
 from uuid import uuid4
-
-# To do later
-# - In App class change How windows are being opened
+import os
 
 
 class DataManager:
     def __init__(self, file_path, main_var):
         self.file_path = file_path
         self.main_var = main_var
+        self.check_file_path()
+
+    def check_file_path(self):
+        if "storing data" not in os.listdir():
+            os.makedirs("storing data")
+        file_name = self.file_path.split("/")[1]
+        if file_name not in os.listdir("storing data/"):
+            with open(f"storing data/{file_name}", "wb") as file:
+                pickle.dump({}, file)
 
     def load(self):
         with open(self.file_path, "rb") as file:

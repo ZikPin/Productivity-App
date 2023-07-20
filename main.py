@@ -3,7 +3,6 @@ from settings import *
 from panels import *
 import calendar
 from datetime import datetime
-import pickle
 
 
 # the main app
@@ -112,14 +111,12 @@ class Timer(Window):
         self.today_date = self.format_date_time()
         self.current_month = calendar.monthcalendar(self.today_date[2], self.today_date[1])
         self.time_is_running = ctk.BooleanVar(value=False)
+        self.time_data = {}
+        self.data_manager = DataManager("storing data/timer_data_set.pickle", self.time_data)
+        self.time_data = self.data_manager.load()
 
-        self.time_data = {self.today_date: self.total_time_float.get()}
-
-        with open("storing data/timer_data_set.pickle", "rb") as time_data_set:
-            file = pickle.load(time_data_set)
-            self.time_data = file
-            if self.time_data.get(self.today_date) is None:
-                self.time_data[self.today_date] = self.total_time_float.get()
+        if self.time_data.get(self.today_date) is None:
+            self.time_data[self.today_date] = self.total_time_float.get()
 
         self.total_time_float.trace("w", self.update_data)
 
@@ -145,8 +142,8 @@ class Timer(Window):
             self.time_data[self.today_date] = round(self.time_data[self.today_date] + 0.1, 1)
         else:
             self.time_data[self.today_date] = round(self.time_data[self.today_date] + 1, 1)
-        with open("storing data/timer_data_set.pickle", "wb") as time_data_set:
-            pickle.dump(self.time_data, time_data_set)
+
+        self.data_manager.save(self.time_data)
 
         self.panel_today_total.update_label()
         self.panel_stats_monthly.update_labels()
@@ -159,7 +156,7 @@ class ToDo(Window):
         super().__init__(parent=parent, name="to do")
 
         # contains all the lists
-        self.lists = ...
+        self.lists = {}
 
         # main frame to store all lists
         self.list_frame_main = ctk.CTkScrollableFrame(self, fg_color="transparent",
@@ -186,6 +183,7 @@ class ToDo(Window):
 
         self.data_manager: DataManager = DataManager("storing data/list_data_set.pickle", self.lists)
         self.lists = self.data_manager.load()
+        print(self.lists)
         self.load_lists()
 
     # a helper function to find the smallest column to pack a list to
@@ -282,7 +280,7 @@ class HabitTracker(Window):
         super().__init__(parent=parent, name="habit")
 
         # data
-        self.habits = ...
+        self.habits = {}
 
         self.habit_frame = ctk.CTkScrollableFrame(self, fg_color="transparent",
                                                   scrollbar_button_color=COLORS["blue_middle"],
