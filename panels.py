@@ -1,5 +1,6 @@
+from dataclasses import dataclass
+import datetime
 import pickle
-
 import customtkinter as ctk
 import tkinter as tk
 from settings import *
@@ -7,9 +8,7 @@ import calendar
 from uuid import uuid4
 
 # To do later
-# - Seperate class for DataManager
-# - Seperate Colors to different dicts not one dict
-# - In App class change How windows are being oppened
+# - In App class change How windows are being opened
 
 
 class DataManager:
@@ -49,8 +48,8 @@ class DataManager:
 class ScrollBar(ctk.CTkSlider):
     def __init__(self, parent, frame, frame_pos, orientation="horizontal"):
         super().__init__(parent, button_corner_radius=10, variable=frame_pos, from_=10, orientation=orientation,
-                         progress_color=OTHER_BLUES["middle"], fg_color=OTHER_BLUES["middle"], to=600,
-                         button_color=OTHER_BLUES["dark"], button_hover_color=OTHER_BLUES["dark"], button_length=30)
+                         progress_color=COLORS["blue_middle"], fg_color=COLORS["blue_middle"], to=600,
+                         button_color=COLORS["blue_dark"], button_hover_color=COLORS["blue_dark"], button_length=30)
 
         # data
         self.parent = parent
@@ -77,13 +76,28 @@ class ScrollBar(ctk.CTkSlider):
 class TimerPanel(ctk.CTkFrame):
     def __init__(self, parent, x, y, name=None, x_span=1, y_span=1):
 
-        super().__init__(master=parent, fg_color=VIOLET, corner_radius=20)
+        super().__init__(master=parent, fg_color=COLORS["violet"], corner_radius=20)
 
         if name:
             ctk.CTkLabel(self, text=name, font=ctk.CTkFont(FONT_FAMILY, FONT_SIZE_PANEL_TITLE, "bold")).\
                 place(relx=0.07, rely=0.02)
 
         self.grid(column=x, row=y, rowspan=y_span, columnspan=x_span, sticky="nsew", padx=10, pady=10)
+
+
+@dataclass
+class CreatablePanels(ctk.CTkFrame):
+    def __init__(self, parent, name, data_manager: DataManager, id_=None, color="violet"):
+        super().__init__(master=parent, fg_color=COLORS[color], corner_radius=20)
+
+        # data
+        self.name = ctk.StringVar(value=name)
+        self.data_manager = data_manager
+        if id_ is None:
+            self.id_ = uuid4()
+        else:
+            self.id_ = id_
+        self.color = color
 
 
 # panel for stopwatch
@@ -101,7 +115,7 @@ class StopWatchPanel(TimerPanel):
         ctk.CTkLabel(self, textvariable=self.time_total_string, font=ctk.CTkFont(FONT_FAMILY, FONT_SIZE_TIMER)).\
             place(relx=0.5, rely=0.5, anchor="center")
 
-        self.button = ctk.CTkButton(self, text="START", fg_color=OTHER_BLUES["middle"], hover_color=OTHER_BLUES["dark"],
+        self.button = ctk.CTkButton(self, text="START", **BUTTON_COLORS["blue_middle"],
                                     corner_radius=10, font=ctk.CTkFont(FONT_FAMILY, FONT_SIZE_BUTTONS, "bold"),
                                     command=self.button_clicked)
 
@@ -163,9 +177,9 @@ class PomodoroPanel(TimerPanel):
         self.activated_frame_label = ctk.StringVar(value="0:0:0")
         self.activated_title_label = ctk.StringVar(value=self.modes[self.current_mode_index].upper())
         self.mode_color = {
-            "work": {"frame": PINKS["dark"], "button": PINKS["light"]},
-            "pause": {"frame": PINKS["light"], "button": PINKS["dark"]},
-            "long pause": {"frame": PINKS["light"], "button": PINKS["dark"]}
+            "work": "pink_dark",
+            "pause": "pink_light",
+            "long pause": "pink_light"
         }
         self.paused = True
         self.time_total = total_time
@@ -183,7 +197,7 @@ class PomodoroPanel(TimerPanel):
 
     def create_starting_frame(self):
         # main frame
-        frame = ctk.CTkFrame(self, fg_color=VIOLET)
+        frame = ctk.CTkFrame(self, fg_color=COLORS["violet"])
 
         # create frames for minutes
         self.create_choosing_frame("Work", self.minutes["work"], frame).place(relx=0, rely=0, anchor="nw", relwidth=1)
@@ -193,7 +207,7 @@ class PomodoroPanel(TimerPanel):
                                                                                           anchor="nw", relwidth=1)
 
         ctk.CTkButton(frame, text="START",
-                      fg_color=OTHER_BLUES["middle"], hover_color=OTHER_BLUES["dark"],
+                      **BUTTON_COLORS["blue_middle"],
                       corner_radius=10,
                       font=ctk.CTkFont(FONT_FAMILY, FONT_SIZE_BUTTONS, "bold"),
                       command=self.start).place(relx=0.5, rely=1, anchor="s", relwidth=0.6)
@@ -202,18 +216,18 @@ class PomodoroPanel(TimerPanel):
 
     def create_choosing_frame(self, title, minutes, main_frame):
         # little widgets for choosing minutes for work and pause
-        frame = ctk.CTkFrame(main_frame, fg_color=VIOLET)
+        frame = ctk.CTkFrame(main_frame, fg_color=COLORS["violet"])
 
         ctk.CTkLabel(frame, text=f"{title}: ",
                      font=ctk.CTkFont(FONT_FAMILY, FONT_SIZE_POMODORO_CHOOSING_MINUTES)).pack(side="left")
         ctk.CTkLabel(frame, textvariable=minutes,
                      font=ctk.CTkFont(FONT_FAMILY, FONT_SIZE_POMODORO_CHOOSING_MINUTES)).pack(side="left")
         ctk.CTkButton(frame, text="-", width=30, command=lambda: self.add_remove_minutes(title, -1),
-                      font=ctk.CTkFont(FONT_FAMILY, FONT_SIZE_BUTTONS), hover_color=OTHER_BLUES["dark"],
-                      fg_color=OTHER_BLUES["middle"]).pack(side="right", padx=10)
+                      font=ctk.CTkFont(FONT_FAMILY, FONT_SIZE_BUTTONS), **BUTTON_COLORS["blue_middle"]).\
+            pack(side="right", padx=10)
         ctk.CTkButton(frame, text="+", width=30, command=lambda: self.add_remove_minutes(title, 1),
-                      font=ctk.CTkFont(FONT_FAMILY, FONT_SIZE_BUTTONS), hover_color=OTHER_BLUES["dark"],
-                      fg_color=OTHER_BLUES["middle"]).pack(side="right", padx=10)
+                      font=ctk.CTkFont(FONT_FAMILY, FONT_SIZE_BUTTONS), **BUTTON_COLORS["blue_middle"]).\
+            pack(side="right", padx=10)
 
         return frame
 
@@ -222,7 +236,8 @@ class PomodoroPanel(TimerPanel):
         self.timer = self.minutes[self.modes[self.current_mode_index]].get() * 60
 
     def create_activated_frame(self):
-        main_frame = ctk.CTkFrame(master=self, fg_color=self.mode_color[self.modes[self.current_mode_index]]["frame"])
+        main_frame = ctk.CTkFrame(master=self,
+                                  fg_color=COLORS[self.mode_color[self.modes[self.current_mode_index]]])
 
         # title label
         ctk.CTkLabel(main_frame, textvariable=self.activated_title_label,
@@ -235,19 +250,17 @@ class PomodoroPanel(TimerPanel):
             place(relx=0.5, rely=0.5, anchor="center")
 
         # session buttons
-        ctk.CTkButton(master=main_frame, text="END SESSION", fg_color="red", corner_radius=10, hover_color=BLACK,
+        ctk.CTkButton(master=main_frame, text="END SESSION", **BUTTON_COLORS["delete"], corner_radius=10,
                       font=ctk.CTkFont(FONT_FAMILY, FONT_SIZE_BUTTONS, "bold"),
                       command=self.end_session).place(relx=0, rely=1, anchor="sw", relwidth=0.4)
 
-        self.stop_button = ctk.CTkButton(master=main_frame, text="STOP",
-                                         fg_color=self.mode_color[self.modes[self.current_mode_index]]["button"],
-                                         corner_radius=10, hover_color=OTHER_BLUES["dark"],
+        self.stop_button = ctk.CTkButton(master=main_frame, text="STOP", corner_radius=10,
+                                         **BUTTON_COLORS[self.mode_color[self.modes[self.current_mode_index]]+"_inverse"],
                                          font=ctk.CTkFont(FONT_FAMILY, FONT_SIZE_BUTTONS, "bold"),
                                          command=self.stop_session)
 
-        self.skip_button = ctk.CTkButton(master=main_frame, text="SKIP",
-                                         fg_color=self.mode_color[self.modes[self.current_mode_index]]["button"],
-                                         corner_radius=10, hover_color=OTHER_BLUES["dark"],
+        self.skip_button = ctk.CTkButton(master=main_frame, text="SKIP", corner_radius=10,
+                                         **BUTTON_COLORS[self.mode_color[self.modes[self.current_mode_index]]+"_inverse"],
                                          font=ctk.CTkFont(FONT_FAMILY, FONT_SIZE_BUTTONS, "bold"),
                                          command=self.next_session)
 
@@ -259,7 +272,7 @@ class PomodoroPanel(TimerPanel):
     def start(self):
         # starting the timer
         self.start_frame.place_forget()
-        self.configure(fg_color=PINKS["dark"])
+        self.configure(fg_color=COLORS[self.mode_color[self.modes[self.current_mode_index]]])
         self.activated_frame = self.create_activated_frame()
         self.activated_frame.place(relx=0.05, rely=0.2, anchor="nw", relheight=0.75, relwidth=0.9)
         self.paused = False
@@ -283,13 +296,13 @@ class PomodoroPanel(TimerPanel):
         self.temp_name((self.current_mode_index + 1) % len(self.modes), ":".join(map(str, seconds_to_time(self.timer))))
         self.activated_frame = self.create_activated_frame()
         self.activated_frame.place(relx=0.05, rely=0.2, anchor="nw", relheight=0.75, relwidth=0.9)
-        self.configure(fg_color=self.mode_color[self.modes[self.current_mode_index]]["frame"])
+        self.configure(fg_color=COLORS[self.mode_color[self.modes[self.current_mode_index]]])
 
     def end_session(self):
         self.paused = True
         self.temp_name(0, "0:0:0")
         self.start_frame.place(relx=0.05, rely=0.2, anchor="nw", relheight=0.75, relwidth=0.9)
-        self.configure(fg_color=VIOLET)
+        self.configure(fg_color=COLORS["violet"])
 
     def temp_name(self, current_mode_index, activated_frame_timer):
         # created to eliminate dupes in end_session and next_session
@@ -375,11 +388,11 @@ class MonthlyStatsPanel(TimerPanel):
             time = self.time_data.get((i, self.month, self.year))
             if time != 0.0 and time is not None:
                 if time < self.average - difference:
-                    self.labels_by_date[(i, self.month, self.year)].configure(fg_color=OTHER_BLUES["light"])
+                    self.labels_by_date[(i, self.month, self.year)].configure(fg_color=COLORS["blue_light"])
                 elif abs(time - self.average) <= difference:
-                    self.labels_by_date[(i, self.month, self.year)].configure(fg_color=OTHER_BLUES["middle"])
+                    self.labels_by_date[(i, self.month, self.year)].configure(fg_color=COLORS["blue_middle"])
                 else:
-                    self.labels_by_date[(i, self.month, self.year)].configure(fg_color=OTHER_BLUES["dark"])
+                    self.labels_by_date[(i, self.month, self.year)].configure(fg_color=COLORS["blue_dark"])
 
     def change_month(self, amount):
         self.month += amount
@@ -425,7 +438,7 @@ class WeeklyStatsPanel(TimerPanel):
         self.week_label = ctk.StringVar()
         self.week_days = ["M", "T", "W", "T", "F", "S", "S"]
 
-        self.main_canvas = tk.Canvas(self, background=VIOLET, bd=0, highlightthickness=0, relief="ridge")
+        self.main_canvas = tk.Canvas(self, background=COLORS["violet"], bd=0, highlightthickness=0, relief="ridge")
 
         # finding the week and setting up the header frame
         self.find_current_week()
@@ -437,13 +450,13 @@ class WeeklyStatsPanel(TimerPanel):
     def set_up_header_frame(self):
         header_frame = ctk.CTkFrame(self, fg_color="transparent", height=30)
 
-        ctk.CTkButton(header_frame, text="<", width=25, fg_color="transparent", hover_color=OTHER_BLUES["dark"],
+        ctk.CTkButton(header_frame, text="<", width=25, fg_color="transparent", hover_color=COLORS["blue_dark"],
                       font=ctk.CTkFont(FONT_FAMILY, FONT_SIZE_CALENDAR, "bold"),
                       command=lambda: self.change_week("left")).pack(side="left")
         ctk.CTkLabel(header_frame, textvariable=self.week_label,
                      font=ctk.CTkFont(FONT_FAMILY, FONT_SIZE_MAIN, "bold"),
                      fg_color="transparent").pack(side="left", fill="both", expand=True)
-        ctk.CTkButton(header_frame, text=">", width=25, fg_color="transparent", hover_color=OTHER_BLUES["dark"],
+        ctk.CTkButton(header_frame, text=">", width=25, fg_color="transparent", hover_color=COLORS["blue_dark"],
                       font=ctk.CTkFont(FONT_FAMILY, FONT_SIZE_CALENDAR, "bold"),
                       command=lambda: self.change_week("right")).pack(side="right")
 
@@ -522,9 +535,9 @@ class WeeklyStatsPanel(TimerPanel):
 
         # drawing graph lines
         self.main_canvas.create_line(0, canvas_height * 0.7, canvas_width * 0.85, canvas_height * 0.7,
-                                     capstyle="round", width=3, fill=WHITE)
+                                     capstyle="round", width=3, fill=COLORS["white"])
         self.main_canvas.create_line(canvas_width * 0.85, 0, canvas_width * 0.85, canvas_height * 0.7,
-                                     capstyle="round", width=3, fill=WHITE)
+                                     capstyle="round", width=3, fill=COLORS["white"])
 
         for i in range(7):
             self.draw_stat_day(0, canvas_height * 0.2, canvas_width * 0.85, canvas_height * 0.4, i)
@@ -543,7 +556,7 @@ class WeeklyStatsPanel(TimerPanel):
                                      graph_y_offset + graph_height,
                                      graph_x_offset + day_width * day_index + day_offset,
                                      graph_y_offset + graph_height - day_stat_height,
-                                     capstyle="round", fill=WHITE, width=30)
+                                     capstyle="round", fill=COLORS["white"], width=30)
 
         if self.day_stats[day_index] == 0:
             day_text = "0s"
@@ -561,19 +574,19 @@ class WeeklyStatsPanel(TimerPanel):
 
         self.main_canvas.create_text(graph_x_offset + day_width * day_index + day_offset,
                                      graph_y_offset + graph_height,
-                                     text=day_text, fill=VIOLET,
+                                     text=day_text, fill=COLORS["violet"],
                                      font=ctk.CTkFont(FONT_FAMILY, FONT_SIZE_MAIN - 3, "bold"))
 
         self.main_canvas.create_text(graph_x_offset + day_width * day_index + day_offset,
                                      graph_y_offset + graph_height + 40,
-                                     text=self.week_days[day_index], fill=WHITE,
+                                     text=self.week_days[day_index], fill=COLORS["white"],
                                      font=ctk.CTkFont(FONT_FAMILY, FONT_SIZE_MAIN-3, "bold"))
 
     def draw_stat_indicator(self, x2, y, title):
         self.main_canvas.create_line(0, y, x2, y,
-                                     dash=20, fill=WHITE, capstyle="round", width=3)
-        self.main_canvas.create_text(x2+5, y, anchor="w",
-                                     text=title, fill=WHITE, font=ctk.CTkFont(FONT_FAMILY, FONT_SIZE_MAIN-3, "bold"))
+                                     dash=20, fill=COLORS["white"], capstyle="round", width=3)
+        self.main_canvas.create_text(x2+5, y, anchor="w", text=title, fill=COLORS["white"],
+                                     font=ctk.CTkFont(FONT_FAMILY, FONT_SIZE_MAIN-3, "bold"))
 
     def change_week(self, direction):
         if direction == "left":
@@ -599,20 +612,13 @@ class WeeklyStatsPanel(TimerPanel):
             self.find_current_week()
 
 
-class ListPanel(ctk.CTkFrame):
-    def __init__(self, parent, window, tasks, title="To do list", id=None, fg_color=VIOLET):
-        super().__init__(master=parent, fg_color=VIOLET, corner_radius=20)
+class ListPanel(CreatablePanels):
+    def __init__(self, parent: ctk.CTkFrame, data_manager: DataManager, tasks: dict, name: str = "To do list",
+                 id_=None):
+        super().__init__(parent, name, data_manager, id_)
 
         # data
-        self.title_string = ctk.StringVar(value=title)
         self.tasks = tasks
-        self.main_window = window
-        if id is None:
-            self.id = uuid4()
-        else:
-            self.id = id
-
-        print(self.id)
 
         # main frames
         self.edit_frame = self.setup_edit_frame()
@@ -627,22 +633,22 @@ class ListPanel(ctk.CTkFrame):
 
         # setting the title
         ctk.CTkLabel(edit_frame, text="Name of the list:", font=font, anchor="w").pack(fill="x")
-        ctk.CTkEntry(edit_frame, textvariable=self.title_string, border_width=0, fg_color=OTHER_BLUES["dark"],
+        ctk.CTkEntry(edit_frame, textvariable=self.name, border_width=0, fg_color=COLORS["blue_dark"],
                      font=font).pack(fill="x")
 
         # adding the tasks
         ctk.CTkLabel(edit_frame, text="Add some tasks:",
                      font=font, anchor="w").pack(fill="x")
-        task_entry = ctk.CTkEntry(edit_frame, font=font, fg_color=OTHER_BLUES["dark"], border_width=0)
+        task_entry = ctk.CTkEntry(edit_frame, font=font, fg_color=COLORS["blue_dark"], border_width=0)
         task_entry.pack(fill="x")
 
         # adding tasks if they exist
         task_frame = self.add_tasks(edit_frame)
 
         # done and edit buttons
-        ctk.CTkButton(edit_frame, text="DONE", fg_color=OTHER_BLUES["middle"], hover_color=OTHER_BLUES["dark"],
+        ctk.CTkButton(edit_frame, text="DONE", **BUTTON_COLORS["blue_middle"],
                       width=50, command=self.done).pack(side="left", pady=10)
-        ctk.CTkButton(edit_frame, text="ADD TASK", fg_color=OTHER_BLUES["middle"], hover_color=OTHER_BLUES["dark"],
+        ctk.CTkButton(edit_frame, text="ADD TASK", **BUTTON_COLORS["blue_middle"],
                       width=50, command=lambda: self.create_task(task_entry, task_frame)).pack(side="right", pady=10)
 
         task_entry.bind("<Key-Return>", lambda event: self.create_task(task_entry, task_frame))
@@ -652,16 +658,16 @@ class ListPanel(ctk.CTkFrame):
         main_frame = ctk.CTkFrame(self, fg_color="transparent")
 
         # title
-        ctk.CTkLabel(main_frame, textvariable=self.title_string, font=ctk.CTkFont(FONT_FAMILY, FONT_SIZE_MAIN, "bold"),
-                     text_color=WHITE, anchor="w").pack()
+        ctk.CTkLabel(main_frame, textvariable=self.name, font=ctk.CTkFont(FONT_FAMILY, FONT_SIZE_MAIN, "bold"),
+                     text_color=COLORS["white"], anchor="w").pack()
 
         # adding tasks
         self.add_tasks(main_frame)
 
         # buttons
-        ctk.CTkButton(main_frame, text="EDIT", fg_color=OTHER_BLUES["middle"], hover_color=OTHER_BLUES["dark"],
+        ctk.CTkButton(main_frame, text="EDIT", **BUTTON_COLORS["blue_middle"],
                       width=50, command=self.edit).pack(side="left", pady=10)
-        ctk.CTkButton(main_frame, text="DELETE LIST", fg_color="red", hover_color=BLACK,
+        ctk.CTkButton(main_frame, text="DELETE LIST", **BUTTON_COLORS["delete"],
                       width=50, command=self.delete).pack(side="right", pady=10)
         return main_frame
 
@@ -674,7 +680,7 @@ class ListPanel(ctk.CTkFrame):
     # after editing to save the list
     def done(self):
         self.load_the_list()
-        self.main_window.save_list(self)
+        self.save()
 
     # loading the list
     def load_the_list(self):
@@ -705,20 +711,22 @@ class ListPanel(ctk.CTkFrame):
 
     # deleting the list
     def delete(self):
-        self.main_window.delete_list(self)
-        self.pack_forget()
+        self.data_manager.delete(self.id_, (self,))
+
+    def save(self):
+        self.data_manager.save_one_obj(self.id_, {"name": self.name.get(), "tasks": self.tasks})
 
 
 class ListWork(ctk.CTkFrame):
-    def __init__(self, main_list: ListPanel, parent: ctk.CTkFrame, title: str, tasks: dict):
+    def __init__(self, main_list: ListPanel, parent: ctk.CTkFrame, name: str, tasks: dict):
         super().__init__(master=parent, fg_color="transparent")
 
         # data
         self.tasks = tasks
-        self.task = title
+        self.task = name
         self.task_label = ctk.StringVar()
         self.parent = parent
-        self.value = ctk.BooleanVar(value=tasks[title]["value"])
+        self.value = ctk.BooleanVar(value=tasks[name]["value"])
         self.main_list = main_list
 
         # the widgets
@@ -730,12 +738,12 @@ class ListWork(ctk.CTkFrame):
     # initialising the widgets and returning label to drag
     def init_widgets(self) -> ctk.CTkLabel:
         label = ctk.CTkLabel(self, text="::  ", font=ctk.CTkFont(FONT_FAMILY, FONT_SIZE_MAIN + 1, "bold"),
-                             text_color=WHITE)
+                             text_color=COLORS["white"])
         label.pack(side="left")
         ctk.CTkCheckBox(self, textvariable=self.task_label, font=ctk.CTkFont(FONT_FAMILY, FONT_SIZE_MAIN - 3),
-                        variable=self.value, hover_color=OTHER_BLUES["middle"], fg_color=OTHER_BLUES["dark"],
-                        border_width=2, border_color=WHITE).pack(side="left", fill="x", pady=5)
-        ctk.CTkButton(self, text="x", fg_color="red", hover_color=BLACK, command=self.delete,
+                        variable=self.value, **BUTTON_COLORS["blue_dark"],
+                        border_width=2, border_color=COLORS["white"]).pack(side="left", fill="x", pady=5)
+        ctk.CTkButton(self, text="x", **BUTTON_COLORS["delete"], command=self.delete,
                       font=ctk.CTkFont(FONT_FAMILY, FONT_SIZE_MAIN - 3, "bold"), width=25).place(relx=1, rely=0.5,
                                                                                                  anchor="e")
 
@@ -753,8 +761,8 @@ class ListWork(ctk.CTkFrame):
     def events(self):
         self.value.trace("w", self.save_value)
         self.bind("<Configure>", lambda event: self.format())
-        self.drag.bind("<Enter>", lambda event: self.configure(fg_color=OTHER_BLUES["middle"]))
-        self.drag.bind("<Leave>", lambda event: self.configure(fg_color=VIOLET))
+        self.drag.bind("<Enter>", lambda event: self.configure(fg_color=COLORS["blue_middle"]))
+        self.drag.bind("<Leave>", lambda event: self.configure(fg_color=COLORS["violet"]))
         self.drag.bind("<B1-Motion>", self.change_place)
 
     # originally meant to change type and the placement of tasks but is only capable of changing the type
@@ -790,26 +798,21 @@ class ListWork(ctk.CTkFrame):
         self.update_list()
 
     def update_list(self):
-        self.main_list.main_window.save_list(self.main_list)
+        self.main_list.save()
 
 
-class HabitPanel(ctk.CTkFrame):
-    def __init__(self, parent, date, save_func, delete_func, id_=uuid4(), title="Habit Name",
-                 description="Short description of the habit", color="violet", track={}):
-        super().__init__(master=parent, fg_color=COLORS[color]["self"], corner_radius=20)
+class HabitPanel(CreatablePanels):
+    def __init__(self, parent, data_manager, track, id_=None, name="Habit Name",
+                 description="Short description of the habit", color="violet"):
+        super().__init__(parent, name, data_manager, id_, color)
 
         # data
-        self.title = ctk.StringVar(value=title)
         self.description = ctk.StringVar(value=description)
-        self.color = color
-        self.date = date
-        self.date_display = date[:]
+        self.date = format_date()
+        self.date_display = self.date[:]
         self.content_frame = None
         self.main_canvas: tk.Canvas = ...
         self.habit_tracker = track.copy()
-        self.id = id_
-        self.save_func = save_func
-        self.delete_func = delete_func
 
         self.edit_frame = self.setup_edit_frame()
         self.main_frame = self.setup_main_frame()
@@ -822,21 +825,21 @@ class HabitPanel(ctk.CTkFrame):
         # questions related to title, description and color
         ctk.CTkLabel(frame, text="Write your habit name:", anchor="w",
                      font=ctk.CTkFont(FONT_FAMILY, FONT_SIZE_MAIN, "bold")).pack(fill="x")
-        ctk.CTkEntry(frame, textvariable=self.title, border_width=0, fg_color=COLORS[self.color]["opposite"],
+        ctk.CTkEntry(frame, textvariable=self.name, border_width=0, fg_color=COLORS_OPPOSITE[self.color],
                      font=ctk.CTkFont(FONT_FAMILY, FONT_SIZE_MAIN, "bold")).pack(fill="x", pady=5)
 
         ctk.CTkLabel(frame, text="Write a short description of your habit:", anchor="w",
                      font=ctk.CTkFont(FONT_FAMILY, FONT_SIZE_MAIN, "bold")).pack(fill="x")
-        ctk.CTkEntry(frame, textvariable=self.description, border_width=0, fg_color=COLORS[self.color]["opposite"],
+        ctk.CTkEntry(frame, textvariable=self.description, border_width=0, fg_color=COLORS_OPPOSITE[self.color],
                      font=ctk.CTkFont(FONT_FAMILY, FONT_SIZE_MAIN, "bold")).pack(fill="x", pady=5)
 
         ctk.CTkLabel(frame, text="Pick a color for your habit:", anchor="w",
                      font=ctk.CTkFont(FONT_FAMILY, FONT_SIZE_MAIN, "bold")).pack(fill="x", pady=5)
 
         color_button_frame = ctk.CTkFrame(frame, fg_color="transparent")
-        available_colors = {"red": COLORS["red"]["self"], "pink_dark": PINKS["dark"],
-                            "green": COLORS["green"]["self"],
-                            "blue_dark": OTHER_BLUES["dark"], "violet": VIOLET, "coral": COLORS["coral"]["self"]}
+        available_colors = {"red": COLORS["red"], "pink_dark": COLORS["pink_dark"],
+                            "green": COLORS["green"], "blue_dark": COLORS["blue_dark"], "violet": COLORS["violet"],
+                            "coral": COLORS["coral"]}
 
         for color_name, color in available_colors.items():
             self.color_buttons(color_name, color, color_button_frame)
@@ -844,8 +847,8 @@ class HabitPanel(ctk.CTkFrame):
         color_button_frame.pack(fill="x")
 
         ctk.CTkButton(frame, text="DONE", **BUTTON_COLORS[self.color + "_inverse"], border_width=2, command=self.done,
-                      border_color=WHITE).pack(side="left", pady=10, padx=20, fill="both", expand=True)
-        ctk.CTkButton(frame, text="DELETE", **BUTTON_COLORS["delete"], border_color=WHITE, border_width=2,
+                      border_color=COLORS["white"]).pack(side="left", pady=10, padx=20, fill="both", expand=True)
+        ctk.CTkButton(frame, text="DELETE", **BUTTON_COLORS["delete"], border_color=COLORS["white"], border_width=2,
                       command=self.delete).\
             pack(side="right", pady=10, padx=20, fill="both", expand=True)
 
@@ -861,30 +864,31 @@ class HabitPanel(ctk.CTkFrame):
         # frame to display the calendar and the stats
         self.setup_content_frame(frame)
 
-        ctk.CTkButton(frame, text="EDIT", **BUTTON_COLORS[self.color + "_inverse"], border_width=2, command=self.edit,
-                      border_color=WHITE).pack(side="left", padx=20, fill="both", expand=True)
-        ctk.CTkButton(frame, text="DELETE", **BUTTON_COLORS["delete"], border_color=WHITE, border_width=2,
-                      command=self.delete). \
-            pack(side="right", padx=20, fill="both", expand=True)
-
         return frame
 
     # setting up frame responsible for displaying the month and the relevant stats
     def setup_content_frame(self, frame):
         self.content_frame = ctk.CTkFrame(frame, fg_color="transparent")
 
+        helper_frame = ctk.CTkFrame(self.content_frame, fg_color="transparent")
         # frame to display calendars
-        self.setup_monthly_calendar(self.content_frame)
-
+        self.setup_monthly_calendar(helper_frame)
         # frame to display the stats
-        self.setup_monthly_stat(self.content_frame)
+        self.setup_monthly_stat(helper_frame)
+        helper_frame.pack(expand=True, fill="both", pady=10)
 
-        self.content_frame.pack(expand=True, fill="both", pady=10)
+        ctk.CTkButton(self.content_frame, text="EDIT", **BUTTON_COLORS[self.color + "_inverse"], border_width=2, command=self.edit,
+                      border_color=COLORS["white"]).pack(side="left", padx=20, fill="both", expand=True, pady=5)
+        ctk.CTkButton(self.content_frame, text="DELETE", **BUTTON_COLORS["delete"], border_color=COLORS["white"], border_width=2,
+                      command=self.delete). \
+            pack(side="right", padx=20, fill="both", expand=True, pady=5)
+
+        self.content_frame.pack(expand=True, fill="both")
 
     # setting up title frame for main frame
     def setup_title_main_frame(self, main_frame):
-        frame = ctk.CTkFrame(main_frame, fg_color=COLORS[self.color]["opposite"], corner_radius=20)
-        ctk.CTkLabel(frame, textvariable=self.title, anchor="s",
+        frame = ctk.CTkFrame(main_frame, fg_color=COLORS_OPPOSITE[self.color], corner_radius=20)
+        ctk.CTkLabel(frame, textvariable=self.name, anchor="s",
                      font=ctk.CTkFont(FONT_FAMILY, FONT_SIZE_MAIN + 15, "bold")).pack(side="left", fill="x", padx=13)
         ctk.CTkLabel(frame, text=" - ", anchor="s",
                      font=ctk.CTkFont(FONT_FAMILY, FONT_SIZE_MAIN - 2, "bold")).pack(side="left", fill="x")
@@ -897,15 +901,15 @@ class HabitPanel(ctk.CTkFrame):
         month = calendar.monthcalendar(self.date_display[2], self.date_display[1])
 
         # main frame for calendar
-        calendar_frame = ctk.CTkFrame(content_frame, fg_color=COLORS[self.color]["opposite"], corner_radius=20)
+        calendar_frame = ctk.CTkFrame(content_frame, fg_color=COLORS_OPPOSITE[self.color], corner_radius=20)
 
         # frame for title of calendar
-        calendar_title_frame = ctk.CTkFrame(calendar_frame, fg_color=COLORS[self.color]["self"],
+        calendar_title_frame = ctk.CTkFrame(calendar_frame, fg_color=COLORS[self.color],
                                             corner_radius=20)
 
         ctk.CTkButton(calendar_title_frame, text="<", **BUTTON_COLORS[self.color], corner_radius=9,
                       command=lambda: self.change_month(-1)).place(relx=0.04, rely=0.5, anchor="w", relwidth=0.1,
-                                                                  relheight=0.9)
+                                                                   relheight=0.9)
         ctk.CTkLabel(calendar_title_frame, text=f"{calendar.month_name[self.date_display[1]]} {self.date_display[2]}",
                      font=ctk.CTkFont(FONT_FAMILY, FONT_SIZE_CALENDAR + 8, "bold")).place(relx=0.5, rely=0.5,
                                                                                           anchor="center")
@@ -944,11 +948,11 @@ class HabitPanel(ctk.CTkFrame):
 
     # setting up monthly stats for main frame
     def setup_monthly_stat(self, content_frame):
-        stats_frame = ctk.CTkFrame(content_frame, fg_color=COLORS[self.color]["opposite"], corner_radius=20)
+        stats_frame = ctk.CTkFrame(content_frame, fg_color=COLORS_OPPOSITE[self.color], corner_radius=20)
 
         # canvas to draw stats
-        self.main_canvas = tk.Canvas(stats_frame, background=COLORS[self.color]["opposite"], bd=0, highlightthickness=0,
-                           relief="ridge")
+        self.main_canvas = tk.Canvas(stats_frame, background=COLORS_OPPOSITE[self.color], bd=0, highlightthickness=0,
+                                     relief="ridge")
         self.main_canvas.pack(expand=True, fill="both", padx=7, pady=7)
 
         self.main_canvas.bind("<Configure>", lambda event: self.draw_stats(event.width, event.height))
@@ -958,8 +962,9 @@ class HabitPanel(ctk.CTkFrame):
     def draw_stats(self, width, height):
         # drawing graph lines
         self.main_canvas.delete("all")
-        self.main_canvas.create_line(width*0.01, height*0.1, width*0.01, height*0.9, fill=WHITE, width=2)
-        self.main_canvas.create_line(width * 0.01, height * 0.9, width * 0.99, height * 0.9, fill=WHITE, width=2)
+        self.main_canvas.create_line(width*0.01, height*0.1, width*0.01, height*0.9, fill=COLORS["white"], width=2)
+        self.main_canvas.create_line(width * 0.01, height * 0.9, width * 0.99, height * 0.9, fill=COLORS["white"],
+                                     width=2)
 
         month = calendar.monthcalendar(self.date_display[2], self.date_display[1])
         month_max = max(month[-1])
@@ -978,20 +983,20 @@ class HabitPanel(ctk.CTkFrame):
         else:
             coords.append((width*0.01 + gap*month_max - gap, height*0.9))
 
-        self.main_canvas.create_polygon(coords, width=4, fill=COLORS[self.color]["self"], outline=WHITE)
+        self.main_canvas.create_polygon(coords, width=4, fill=COLORS[self.color], outline=COLORS["white"])
 
-    # functions that is responsible for changing color in edit mode
+    # function that is responsible for changing color in edit mode
     def change_color(self, color):
         self.color = color
         self.edit_frame.pack_forget()
-        self.configure(fg_color=COLORS[color]["self"])
+        self.configure(fg_color=COLORS[color])
         self.edit_frame = self.setup_edit_frame()
         self.edit_frame.pack(expand=True, fill="both", padx=15, pady=15)
 
     # helper function that helps to avoid the bug with buttons and functions
     def color_buttons(self, color_name, color, color_button_frame):
         button = ctk.CTkButton(color_button_frame, text="", width=50, height=50, **BUTTON_COLORS[color_name],
-                               border_width=2, border_color=WHITE, corner_radius=20,
+                               border_width=2, border_color=COLORS["white"], corner_radius=20,
                                command=lambda: self.change_color(color_name))
         button.pack(side="left", padx=5, expand=True)
 
@@ -1004,13 +1009,13 @@ class HabitPanel(ctk.CTkFrame):
                 state = "disabled"
 
         if self.habit_tracker.get(date) is None:
-            button = ctk.CTkButton(calendar_month_frame, text=str(month[row][column]), text_color=WHITE,
-                                   fg_color=COLORS[self.color]["opposite"], hover_color=COLORS[self.color]["self"],
+            button = ctk.CTkButton(calendar_month_frame, text=str(month[row][column]), text_color=COLORS["white"],
+                                   fg_color=COLORS_OPPOSITE[self.color], hover_color=COLORS[self.color],
                                    corner_radius=10, width=0, font=ctk.CTkFont(FONT_FAMILY, FONT_SIZE_CALENDAR, "bold"),
                                    state=state, height=30)
         else:
-            button = ctk.CTkButton(calendar_month_frame, text=str(month[row][column]), text_color=WHITE,
-                                   fg_color=COLORS[self.color]["self"], hover_color=COLORS[self.color]["self"],
+            button = ctk.CTkButton(calendar_month_frame, text=str(month[row][column]), text_color=COLORS["white"],
+                                   fg_color=COLORS[self.color], hover_color=COLORS[self.color],
                                    corner_radius=10, width=0, font=ctk.CTkFont(FONT_FAMILY, FONT_SIZE_CALENDAR, "bold"),
                                    state=state, height=30)
 
@@ -1020,7 +1025,7 @@ class HabitPanel(ctk.CTkFrame):
     # after editing
     def done(self):
         self.load()
-        self.save_func(self)
+        self.save()
 
     def load(self):
         self.edit_frame.pack_forget()
@@ -1035,34 +1040,38 @@ class HabitPanel(ctk.CTkFrame):
     def done_work(self, date, button):
         if self.habit_tracker.get(date) is None:
             self.habit_tracker[date] = True
-            button.configure(fg_color=COLORS[self.color]["self"])
+            button.configure(fg_color=COLORS[self.color])
         else:
             del self.habit_tracker[date]
-            button.configure(fg_color=COLORS[self.color]["opposite"])
+            button.configure(fg_color=COLORS_OPPOSITE[self.color])
 
-        self.save_func(self)
+        self.save()
         self.draw_stats(self.main_canvas.winfo_width(), self.main_canvas.winfo_height())
 
     def delete(self):
-        self.delete_func(self)
-        self.pack_forget()
+        self.data_manager.delete(self.id_, (self,))
+
+    def save(self):
+        values = {"name": self.name.get(), "description": self.description.get(),
+                  "track": self.habit_tracker, "color": self.color}
+        self.data_manager.save_one_obj(self.id_, values)
 
 
 class NewProject(ctk.CTkFrame):
     def __init__(self, parent, func):
-        super().__init__(master=parent, fg_color=VIOLET, corner_radius=20)
+        super().__init__(master=parent, fg_color=COLORS["violet"], corner_radius=20)
 
         # data
         self.title = ""
         self.func = func
         self.id_ = uuid4()
 
-        ctk.CTkLabel(self, text="Name your new Project", text_color=WHITE,
+        ctk.CTkLabel(self, text="Name your new Project", text_color=COLORS["white"],
                      font=ctk.CTkFont(FONT_FAMILY, FONT_SIZE_PANEL_TITLE, "bold")).pack(expand=True, anchor="s",
                                                                                         padx=10, pady=10)
-        self.name_entry = ctk.CTkEntry(self, corner_radius=10, fg_color=OTHER_BLUES["dark"], border_width=0, height=50,
+        self.name_entry = ctk.CTkEntry(self, corner_radius=10, fg_color=COLORS["blue_dark"], border_width=0, height=50,
                                        font=ctk.CTkFont(FONT_FAMILY, FONT_SIZE_PANEL_TITLE - 5, "bold"),
-                                       text_color=WHITE, placeholder_text="New Project")
+                                       text_color=COLORS["white"], placeholder_text="New Project")
         self.name_entry.pack(anchor="n", padx=100, pady=10, fill="x")
         ctk.CTkButton(self, text="DONE", **BUTTON_COLORS["blue_middle"], command=self.done).pack(expand=True,
                                                                                                  anchor="n")
@@ -1074,20 +1083,16 @@ class NewProject(ctk.CTkFrame):
     def done(self):
         self.title = self.name_entry.get()
         self.name_entry.delete(0, "end")
-        print(self.title)
         self.func(self.title, self.id_)
         self.pack_forget()
 
 
-class ProjectPanel(ctk.CTkFrame):
+class ProjectPanel(CreatablePanels):
     def __init__(self, parent, data_manager, id_, name, lists):
-        super().__init__(master=parent, fg_color=VIOLET, corner_radius=20)
+        super().__init__(parent, name, data_manager, id_)
 
         # data
-        self.name = name
-        self.id_ = id_
         self.parent = parent
-        self.data_manager: DataManager = data_manager
         self.lists = lists
         self.todo_frame_x = ctk.IntVar(value=10)
         self.todo_frame = None
@@ -1099,20 +1104,20 @@ class ProjectPanel(ctk.CTkFrame):
         self.pack(expand=True, fill="both", padx=10, pady=10)
 
     def setup_title_frame(self):
-        title_frame = ctk.CTkFrame(self, fg_color=OTHER_BLUES["middle"], corner_radius=15)
-        ctk.CTkLabel(title_frame, text=self.name, text_color=WHITE,
+        title_frame = ctk.CTkFrame(self, fg_color=COLORS["blue_middle"], corner_radius=15)
+        ctk.CTkLabel(title_frame, text=self.name.get(), text_color=COLORS["white"],
                      font=ctk.CTkFont(FONT_FAMILY, FONT_SIZE_PANEL_TITLE, "bold")). \
             pack(side="left", padx=10, pady=10)
         ctk.CTkButton(title_frame, text="DELETE", **BUTTON_COLORS["delete"], width=40, corner_radius=7,
                       font=ctk.CTkFont(FONT_FAMILY, FONT_SIZE_MAIN),
                       command=lambda: self.parent.delete_project(self)).pack(side="right", padx=10, pady=10)
         ctk.CTkButton(title_frame, text="CLOSE", **BUTTON_COLORS["blue_dark"], width=40, corner_radius=7,
-                      font=ctk.CTkFont(FONT_FAMILY, FONT_SIZE_MAIN), command=self.pack_forget).pack(side="right", padx=10,
-                                                                                              pady=10)
+                      font=ctk.CTkFont(FONT_FAMILY, FONT_SIZE_MAIN), command=self.pack_forget).pack(side="right",
+                                                                                                    padx=10, pady=10)
         title_frame.pack(fill="x", anchor="n", pady=7, padx=7)
 
     def setup_content_frame(self):
-        content_frame = ctk.CTkFrame(self, fg_color=OTHER_BLUES["middle"], corner_radius=15)
+        content_frame = ctk.CTkFrame(self, fg_color=COLORS["blue_middle"], corner_radius=15)
 
         self.todo_frame = ctk.CTkFrame(content_frame, fg_color="transparent")
         self.todo_frame.place(x=0, y=12, relheight=0.85)
@@ -1129,76 +1134,82 @@ class ProjectPanel(ctk.CTkFrame):
         self.load_lists()
 
     def add_list(self):
-        list_ = ProjectList(self.todo_frame, self, {})
+        list_ = ProjectList(self.todo_frame, self, self.data_manager, {})
         list_.edit()
 
     def save_list(self, list_: ListPanel):
-        self.lists[list_.id] = {"title": list_.title_string.get(),
-                                "tasks": list_.tasks}
-        self.data_manager.save_one_obj(self.id_, {"name": self.name, "lists": self.lists})
+        self.lists[list_.id_] = {"title": list_.name.get(), "tasks": list_.tasks}
+        self.data_manager.save_one_obj(self.id_, {"name": self.name.get(), "lists": self.lists})
 
     def delete_list(self, list_):
         del self.lists[list_.id]
-        self.data_manager.save_one_obj(self.id_, {"name": self.name, "lists": self.lists})
+        self.data_manager.save_one_obj(self.id_, {"name": self.name.get(), "lists": self.lists})
 
     def load_lists(self):
         for ID, the_list_data in self.lists.items():
-            the_list = ProjectList(self.todo_frame, self, the_list_data["tasks"], the_list_data["title"], ID)
+            the_list = ProjectList(self.todo_frame, self, self.data_manager, the_list_data["tasks"],
+                                   the_list_data["title"], ID)
             the_list.load_the_list()
 
 
 class ProjectList(ListPanel):
-    def __init__(self, parent, window, tasks, title="To do list", id_=None):
-        super().__init__(parent=parent, window=window, tasks=tasks, title=title, id=id_)
+    def __init__(self, parent_frame, panel: ProjectPanel, data_manager, tasks, name="To do list", id_=None):
+        super().__init__(parent=parent_frame, data_manager=data_manager, tasks=tasks, name=name, id_=id_)
 
-        self.pack(padx=5, pady=5, side="left", fill="y", anchor="nw", expand=True)
+        self.panel = panel
 
     def setup_main_frame(self):
-        main_frame = ctk.CTkScrollableFrame(self, fg_color="transparent", scrollbar_button_color=WHITE,
-                                            scrollbar_button_hover_color=OTHER_BLUES["dark"])
+        main_frame = ctk.CTkScrollableFrame(self, fg_color="transparent", scrollbar_button_color=COLORS["white"],
+                                            scrollbar_button_hover_color=COLORS["blue_dark"])
 
         # title
-        ctk.CTkLabel(main_frame, textvariable=self.title_string, font=ctk.CTkFont(FONT_FAMILY, FONT_SIZE_MAIN, "bold"),
-                     text_color=WHITE, anchor="w").pack()
+        ctk.CTkLabel(main_frame, textvariable=self.name, font=ctk.CTkFont(FONT_FAMILY, FONT_SIZE_MAIN, "bold"),
+                     text_color=COLORS["white"], anchor="w").pack()
 
         # adding tasks
         self.add_tasks(main_frame)
 
         # buttons
-        ctk.CTkButton(main_frame, text="EDIT", fg_color=OTHER_BLUES["middle"], hover_color=OTHER_BLUES["dark"],
+        ctk.CTkButton(main_frame, text="EDIT", **BUTTON_COLORS["blue_middle"],
                       width=50, command=self.edit).pack(side="left", pady=10)
-        ctk.CTkButton(main_frame, text="DELETE LIST", fg_color="red", hover_color=BLACK,
+        ctk.CTkButton(main_frame, text="DELETE LIST", fg_color="red", hover_color=COLORS["black"],
                       width=50, command=self.delete).pack(side="right", pady=10)
 
         return main_frame
 
     def setup_edit_frame(self):
-        edit_frame = ctk.CTkScrollableFrame(self, fg_color="transparent", scrollbar_button_color=WHITE,
-                                            scrollbar_button_hover_color=OTHER_BLUES["dark"])
+        edit_frame = ctk.CTkScrollableFrame(self, fg_color="transparent", scrollbar_button_color=COLORS["white"],
+                                            scrollbar_button_hover_color=COLORS["blue_dark"])
         font = ctk.CTkFont(FONT_FAMILY, FONT_SIZE_TODO, "bold")
 
         # setting the title
         ctk.CTkLabel(edit_frame, text="Name of the list:", font=font, anchor="w").pack(fill="x")
-        ctk.CTkEntry(edit_frame, textvariable=self.title_string, border_width=0, fg_color=OTHER_BLUES["dark"],
+        ctk.CTkEntry(edit_frame, textvariable=self.name, border_width=0, fg_color=COLORS["blue_dark"],
                      font=font).pack(fill="x")
 
         # adding the tasks
         ctk.CTkLabel(edit_frame, text="Add some tasks:",
                      font=font, anchor="w").pack(fill="x")
-        task_entry = ctk.CTkEntry(edit_frame, font=font, fg_color=OTHER_BLUES["dark"], border_width=0)
+        task_entry = ctk.CTkEntry(edit_frame, font=font, fg_color=COLORS["blue_dark"], border_width=0)
         task_entry.pack(fill="x")
 
         # adding tasks if they exist
         task_frame = self.add_tasks(edit_frame)
 
         # done and edit buttons
-        ctk.CTkButton(edit_frame, text="DONE", fg_color=OTHER_BLUES["middle"], hover_color=OTHER_BLUES["dark"],
+        ctk.CTkButton(edit_frame, text="DONE", **BUTTON_COLORS["blue_middle"],
                       width=50, command=self.done).pack(side="left", pady=10)
-        ctk.CTkButton(edit_frame, text="ADD TASK", fg_color=OTHER_BLUES["middle"], hover_color=OTHER_BLUES["dark"],
+        ctk.CTkButton(edit_frame, text="ADD TASK", **BUTTON_COLORS["blue_middle"],
                       width=50, command=lambda: self.create_task(task_entry, task_frame)).pack(side="right", pady=10)
 
         task_entry.bind("<Key-Return>", lambda event: self.create_task(task_entry, task_frame))
         return edit_frame
+
+    def save(self):
+        self.panel.save_list(self)
+
+    def delete(self):
+        self.panel.delete_list(self)
 
 
 # helper function to convert total seconds into hours, minutes and seconds
@@ -1208,3 +1219,10 @@ def seconds_to_time(seconds):
     minutes = seconds // 60
     seconds -= minutes * 60
     return int(hours), int(minutes), round(seconds, 1)
+
+
+def format_date():
+    date, _ = str(datetime.datetime.now()).split()
+    date = date.split("-")[::-1]
+    date = list(map(int, date))
+    return date
