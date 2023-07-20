@@ -35,3 +35,10 @@ Habit tracker:
   - settings.py for some constant values
 - Besides, there is a "storing data" folder to store all the necessary data like lists, habits, projects, total time (done by pickle module)
 - In the dist folder, there is the main folder that contains the exe file for the program (built with pyinstaller on Windows, so probably runs only on Windows :/ )
+
+## Features to be added in the future:
+- Custom colors in projects
+- Settings tab
+- Custom theme for the whole app
+- Drag and drop tasks from one list to another at least in the projects tab
+- Gallery like view for habit trackers and to-do lists
