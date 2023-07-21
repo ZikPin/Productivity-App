@@ -1165,6 +1165,8 @@ class ProjectList(ListPanel):
 
         self.panel = panel
 
+        self.pack(side="left", expand=True, fill="both", padx=10)
+
     def setup_main_frame(self):
         main_frame = ctk.CTkScrollableFrame(self, fg_color="transparent", scrollbar_button_color=COLORS["white"],
                                             scrollbar_button_hover_color=COLORS["blue_dark"])

@@ -56,7 +56,7 @@
  [],
  False,
  False,
- 1689887605,
+ 1689924123,
  [('runw.exe',
    'd:\\ziya\\projects\\python\\productivity '
    'app\\venv\\lib\\site-packages\\PyInstaller\\bootloader\\Windows-64bit-intel\\runw.exe',
